@@ -12,7 +12,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sirupsen/logrus v1.4.2 // indirect
 	github.com/stretchr/testify v1.5.1
-	github.com/vultr/govultr v0.3.1
+	github.com/vultr/govultr v0.4.0
 	golang.org/x/crypto v0.0.0-20200206161412-a0c6ece9d31a // indirect
 	gotest.tools v2.2.0+incompatible // indirect
 )
