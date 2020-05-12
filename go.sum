@@ -17,6 +17,8 @@ github.com/hashicorp/go-retryablehttp v0.6.3 h1:tuulM+WnToeqa05z83YLmKabZxrySOmJ
 github.com/hashicorp/go-retryablehttp v0.6.3/go.mod h1:vAew36LZh98gCBJNLH42IQ1ER/9wtLZZ8meHqQvEYWY=
 github.com/hashicorp/go-retryablehttp v0.6.4 h1:BbgctKO892xEyOXnGiaAwIoSq1QZ/SS4AhjoAh9DnfY=
 github.com/hashicorp/go-retryablehttp v0.6.4/go.mod h1:vAew36LZh98gCBJNLH42IQ1ER/9wtLZZ8meHqQvEYWY=
+github.com/hashicorp/go-retryablehttp v0.6.6 h1:HJunrbHTDDbBb/ay4kxa1n+dLmttUlnP3V9oNE4hmsM=
+github.com/hashicorp/go-retryablehttp v0.6.6/go.mod h1:vAew36LZh98gCBJNLH42IQ1ER/9wtLZZ8meHqQvEYWY=
 github.com/konsorten/go-windows-terminal-sequences v1.0.1 h1:mweAR1A6xJ3oS2pRaGiHgQ4OO8tzTaLawm8vnODuwDk=
 github.com/konsorten/go-windows-terminal-sequences v1.0.1/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
@@ -37,6 +39,8 @@ github.com/vultr/govultr v0.2.0 h1:CZSNNCk+PHz9hzmfH2PFGkDgc3qNetwZqtcaqL8shlg=
 github.com/vultr/govultr v0.2.0/go.mod h1:glSLa57Jdj5s860EEc6+DEBbb/t3aUOKnB4gVPmDVlQ=
 github.com/vultr/govultr v0.3.1 h1:r0JPvWUSGmRAHEhevtpJS+j+7DdK+m8xyvGkZlIc2XA=
 github.com/vultr/govultr v0.3.1/go.mod h1:81RwK1wAmb08alkFDJiZmu9gdv+IO+UamzaF0+PIieE=
+github.com/vultr/govultr v0.4.1 h1:6KjWW30t5czS9iWkYR0e3akjvRMDzYTiFCWVG+6Hcg8=
+github.com/vultr/govultr v0.4.1/go.mod h1:TUuUizMOFc7z+PNMssb6iGjKjQfpw5arIaOLfocVudQ=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
 golang.org/x/crypto v0.0.0-20200206161412-a0c6ece9d31a h1:aczoJ0HPNE92XKa7DrIzkNN6esOKO2TBwiiYoKcINhA=
 golang.org/x/crypto v0.0.0-20200206161412-a0c6ece9d31a/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
