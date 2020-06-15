@@ -11,7 +11,7 @@ require (
 	github.com/google/go-cmp v0.4.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sirupsen/logrus v1.4.2 // indirect
-	github.com/stretchr/testify v1.5.1
+	github.com/stretchr/testify v1.6.1
 	github.com/vultr/govultr v0.4.2
 	golang.org/x/crypto v0.0.0-20200206161412-a0c6ece9d31a // indirect
 	gotest.tools v2.2.0+incompatible // indirect
