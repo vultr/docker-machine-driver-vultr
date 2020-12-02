@@ -93,7 +93,7 @@ func (d *Driver) serverIsReady() bool {
 			continue
 		}
 
-		if serverStatus == state.Running && serverInfo.ServerState == serverStateOk {
+		if serverStatus == state.Running && serverInfo.PowerStatus == powerStatusRunning {
 			break
 		}
 	}
@@ -113,12 +113,7 @@ func (d *Driver) getServerState() (state.State, error) {
 	case serverStatusActive:
 		switch server.PowerStatus {
 		case powerStatusRunning:
-			switch server.ServerState {
-			case serverStateOk:
-				return state.Running, nil
-			default:
-				return state.Starting, nil
-			}
+			return state.Running, nil
 		default:
 			return state.Stopped, nil
 		}
