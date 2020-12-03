@@ -1,5 +1,9 @@
 # Change Log
 
+## v1.0.2 (2020-12-01)
+### Enhancement
+* Adjusted status checks to improve deployment speed/process [#15](https://github.com/vultr/docker-machine-driver-vultr/issues/15)
+
 ## v1.0.1 (2020-06-16)
 ### Dependencies
 * GoVultr 0.3.1 -> 0.4.2 [#11](https://github.com/vultr/docker-machine-driver-vultr/pull/11)
