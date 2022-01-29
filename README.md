@@ -3,8 +3,8 @@
 Vultr Driver Plugin for docker-machine.
 
 ## Install
-
-`docker-machine` is required, [see the installation documentation](https://docs.docker.com/machine/install-machine/).
+ 
+`docker-machine` is required, [see the installation documentation](https://gitlab.com/gitlab-org/ci-cd/docker-machine/-/blob/main/docs/install-machine.md).
 
 Then, install the `docker-machine-driver-vultr` driver.
 
