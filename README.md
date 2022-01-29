@@ -17,18 +17,10 @@ eval $(go env)
 export PATH="$PATH:$GOPATH/bin"
 ```
 
-You can then install `docker-machine` from source by running:
-
-```bash
-go get github.com/docker/machine
-cd $GOPATH/src/github.com/docker/machine
-make build
-```
-
 And then compile the `docker-machine-driver-vultr` driver:
 
 ```bash
-go get github.com/vultr/docker-machine-driver-vultr
+go get -u github.com/vultr/docker-machine-driver-vultr@latest
 cd $GOPATH/src/github.com/vultr/docker-machine-driver-vultr
 make install
 ```
