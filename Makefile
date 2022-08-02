@@ -8,7 +8,7 @@ PLATFORM=`uname`
 
 LDFLAGS=-ldflags "-w -s"
 
-build: docker-machine-driver-nutanix
+build: docker-machine-driver-vultr
 
 test: $(SOURCES)
 	go test -v -short -race -timeout 30s ./...
