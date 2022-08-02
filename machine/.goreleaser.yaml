@@ -1,0 +1,15 @@
+# .goreleaser.yml
+project_name: docker-machine-driver-vultr
+
+builds:
+  - goos:
+      - linux
+    goarch:
+      - amd64
+
+archives:
+  - name_template: "{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}"
+    format: binary
+
+checksum:
+  name_template: "{{ .ProjectName }}_v{{ .Version }}_checksums.txt"
