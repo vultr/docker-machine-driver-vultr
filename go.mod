@@ -8,11 +8,12 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
 	github.com/docker/docker v1.13.1 // indirect
 	github.com/docker/machine v0.16.2
-	github.com/google/go-cmp v0.4.0 // indirect
+	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sirupsen/logrus v1.4.2 // indirect
 	github.com/stretchr/testify v1.6.1
 	github.com/vultr/govultr v0.4.2
+	github.com/vultr/govultr/v2 v2.17.2 // indirect
 	golang.org/x/crypto v0.0.0-20200206161412-a0c6ece9d31a // indirect
 	gotest.tools v2.2.0+incompatible // indirect
 )
