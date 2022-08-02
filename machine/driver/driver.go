@@ -288,6 +288,19 @@ func (d *VultrDriver) Kill() error {
 	return nil
 }
 
+// Remove ... deltes a host
+func (d *VultrDriver) Remove() error {
+	vultrClient := d.getGoVultrClient()
+
+	err := vultrClient.Instance.Delete(context.Background(), d.ResponsePayloads.Instance.ID)
+	if err != nil {
+		log.Errorf("Error deleting VPS %s: [%v]", d.BaseDriver.MachineName, err)
+		return err
+	}
+
+	return nil
+}
+
 // GetIP ... returns an IP or hostname that this host is available at
 func (d *VultrDriver) GetIP() (ip string, err error) {
 	// IP is set, all is well
@@ -353,12 +366,10 @@ func (d *VultrDriver) GetState() (_state state.State, err error) {
 	return state.None, nil
 }
 
-// Stop ... halts an instance gracefully .... should be handled by driver?
-/*
+// Stop ... should gracefully stop instance but we're just going to halt for now
 func (d *VultrDriver) Stop() error {
 	return d.Kill()
 }
-*/
 
 // DriverName ... returns the name of the driver
 func (d *VultrDriver) DriverName() string {
