@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	defaultOSID       = 477
+	defaultOSID       = 352 // Currently only works on debian 10
 	defaultRegion     = "ewr"
 	defaultPlan       = "vc2-1c-2gb"
 	defaultDockerPort = 2376
@@ -77,7 +77,7 @@ func (d *VultrDriver) GetCreateFlags() []mcnflag.Flag {
 		mcnflag.IntFlag{
 			EnvVar: "VULTR_OSID",
 			Name:   "vultr-os-id",
-			Usage:  "Operating system ID (default: [477] Debian 11)",
+			Usage:  "Operating system ID (default: [352] Debian 10)",
 			Value:  defaultOSID,
 		},
 		mcnflag.StringFlag{
@@ -222,8 +222,13 @@ func (d *VultrDriver) Create() (err error) {
 		return err
 	}
 
-	// Create new ssh key
-	d.addSSHKeyToCloudInitUserData()
+	// Create new ssh key if none was supplied
+	if len(d.RequestPayloads.InstanceCreateReq.SSHKeys) == 0 {
+		d.addSSHKeyToCloudInitUserData()
+	}
+
+	// Allow docker through the firewall. Every vultr OS uses ufw
+	d.appendToCloudInitUserDataCloudConfig([]byte("\r\nruncmd:\r\n  - ufw allow " + cast.ToString(d.DockerPort)))
 
 	// Create instance
 	d.ResponsePayloads.Instance, err = vultrClient.Instance.Create(context.Background(), &d.RequestPayloads.InstanceCreateReq)
@@ -413,15 +418,9 @@ func (d *VultrDriver) addSSHKeyToCloudInitUserData() error {
 		return err
 	}
 
-	// Userdata string
-	sshKey := []byte("#cloud-config\r\nusers:\r\n - name: root\r\n   ssh_authorized_keys:\r\n    - " + string(pubKey))
-	allowDockerThroughFirewall := []byte("\r\nruncmd:\r\n  - ufw allow " + cast.ToString(d.DockerPort))
-	userdata := append(sshKey, allowDockerThroughFirewall...)
-
-	// TODO: Handle issue where UserData might not be empty, right now we're straight up overriding it
-
-	// Add base64 encoded userdata to instance create payload
-	d.RequestPayloads.InstanceCreateReq.UserData = base64.StdEncoding.EncodeToString(userdata)
+	// Add new authorized key to user data so cloud-init can add it
+	sshKey := []byte("\r\nusers:\r\n - name: root\r\n   ssh_authorized_keys:\r\n    - " + string(pubKey))
+	d.appendToCloudInitUserDataCloudConfig(sshKey)
 
 	return nil
 }
@@ -482,6 +481,26 @@ func (d *VultrDriver) validatePlan() error {
 	}
 
 	return notAvailableErr
+}
+
+// appendToCloudInitUserDataCloudConfig ... appends to the #cloud-config of the userdata
+func (d *VultrDriver) appendToCloudInitUserDataCloudConfig(additionalCloudConfig []byte) {
+	var userData []byte
+	// There's nothing so lets give it the heading
+	if len(d.RequestPayloads.InstanceCreateReq.UserData) == 0 {
+		userData = append(userData, []byte("#cloud-config")...)
+	} else {
+		// There's something, we expect it to be Base64 so lets decode it
+		userData, _ = base64.StdEncoding.DecodeString(d.RequestPayloads.InstanceCreateReq.UserData)
+	}
+
+	// Append the new data
+	userData = append(userData, additionalCloudConfig...)
+
+	// Put it all back
+	d.RequestPayloads.InstanceCreateReq.UserData = base64.StdEncoding.EncodeToString(userData)
+
+	// TODO: Handle issue where UserData might not be empty and there's a more complex yaml we need to merge
 }
 
 // getGoVultrClient ... returns a govultr client

@@ -18,6 +18,8 @@ func (c MachineConfig) CreateMachine() ([]byte, error) {
 		"vultr",
 		"--vultr-api-key",
 		c.VultrAPIKey,
+		"--engine-install-url",
+		"https://releases.rancher.com/install-docker/19.03.9.sh",
 	}
 
 	args = append(args, c.MachineName)
