@@ -21,11 +21,12 @@ import (
 )
 
 const (
-	defaultOSID       = 352 // Currently only works on debian 10
-	defaultRegion     = "ewr"
-	defaultPlan       = "vc2-1c-2gb"
-	defaultDockerPort = 2376
-	defaultBackups    = "disabled"
+	defaultOSID        = 352 // Currently only works on debian 10
+	defaultRegion      = "ewr"
+	defaultPlan        = "vc2-1c-2gb"
+	defaultDockerPort  = 2376
+	defaultBackups     = "disabled"
+	defaultLabelPrefix = "vultr-rancher-node-"
 )
 
 // VultrDriver ... driver struct
@@ -66,7 +67,6 @@ func (d *VultrDriver) GetCreateFlags() []mcnflag.Flag {
 			EnvVar: "VULTR_LABEL",
 			Name:   "vultr-label",
 			Usage:  "Resource label (default: The supplied machine name)",
-			Value:  d.BaseDriver.MachineName,
 		},
 		mcnflag.StringSliceFlag{
 			EnvVar: "VULTR_TAGS",
@@ -103,7 +103,6 @@ func (d *VultrDriver) GetCreateFlags() []mcnflag.Flag {
 			EnvVar: "VULTR_HOSTNAME",
 			Name:   "vultr-hostname",
 			Usage:  "Hostname you'd like to assign to this resource (default: The supplied machine name)",
-			Value:  d.BaseDriver.MachineName,
 		},
 		mcnflag.StringFlag{
 			EnvVar: "VULTR_IPXE_CHAIN_URL",
@@ -182,8 +181,40 @@ func (d *VultrDriver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 		return fmt.Errorf("vultr-api-key cannot be empty")
 	}
 
-	d.RequestPayloads.InstanceCreateReq.Label = opts.String("vultr-label")
-	d.RequestPayloads.InstanceCreateReq.Hostname = opts.String("vultr-hostname")
+	defaultHostnameAndLabel := defaultLabelPrefix + cast.ToString(time.Now().Unix())
+
+	// ** Set Label ** //
+	// We have nothing to work with, use a default label
+	if len(opts.String("vultr-label")) == 0 && len(d.BaseDriver.MachineName) == 0 {
+		d.RequestPayloads.InstanceCreateReq.Label = defaultHostnameAndLabel
+	}
+
+	// We have a label set, we'll use that
+	if len(opts.String("vultr-label")) > 0 {
+		d.RequestPayloads.InstanceCreateReq.Label = opts.String("vultr-label")
+	}
+
+	// there's no label but we have a machine name so we'll use that
+	if len(opts.String("vultr-label")) == 0 && len(d.BaseDriver.MachineName) > 0 {
+		d.RequestPayloads.InstanceCreateReq.Label = d.BaseDriver.MachineName
+	}
+
+	// ** Set Hostname ** //
+	// We have nothing to work with, use a default label as the hostname
+	if len(opts.String("vultr-hostname")) == 0 && len(d.BaseDriver.MachineName) == 0 {
+		d.RequestPayloads.InstanceCreateReq.Hostname = defaultHostnameAndLabel
+	}
+
+	// We have a hostname set, we'll use that
+	if len(opts.String("vultr-hostname")) > 0 {
+		d.RequestPayloads.InstanceCreateReq.Hostname = opts.String("vultr-hostname")
+	}
+
+	// there's no hostname but we have a machine name so we'll use that
+	if len(opts.String("vultr-hostname")) == 0 && len(d.BaseDriver.MachineName) > 0 {
+		d.RequestPayloads.InstanceCreateReq.Hostname = d.BaseDriver.MachineName
+	}
+
 	d.RequestPayloads.InstanceCreateReq.Region = opts.String("vultr-region")
 	d.RequestPayloads.InstanceCreateReq.Plan = opts.String("vultr-vps-plan")
 	d.RequestPayloads.InstanceCreateReq.Tags = opts.StringSlice("vultr-tags")
