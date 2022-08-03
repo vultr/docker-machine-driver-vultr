@@ -1,5 +1,10 @@
 # Change Log
 
+## v2.0.0 (2022-08-2)
+## Enhancement
+ * Refactor to accommodate latest version of GoVultr to support Vultr API v2
+ * Leverage cloud-init to install ssh keys instead of creating numerous public keys
+ * Open up docker port on VPS
 ## v1.0.2 (2020-12-01)
 ### Enhancement
 * Adjusted status checks to improve deployment speed/process [#15](https://github.com/vultr/docker-machine-driver-vultr/issues/15)

@@ -25,7 +25,6 @@ const (
 	defaultRegion     = "ewr"
 	defaultPlan       = "vc2-1c-2gb"
 	defaultDockerPort = 2376
-	defaultLabel      = "vultr-rancher-node-"
 	defaultBackups    = "disabled"
 )
 
@@ -66,8 +65,8 @@ func (d *VultrDriver) GetCreateFlags() []mcnflag.Flag {
 		mcnflag.StringFlag{
 			EnvVar: "VULTR_LABEL",
 			Name:   "vultr-label",
-			Usage:  "Resource label (default: vultr-rancher-node-CURRENT_UNIX_TS)",
-			Value:  defaultLabel + cast.ToString(time.Now().Unix()),
+			Usage:  "Resource label (default: The supplied machine name)",
+			Value:  d.BaseDriver.MachineName,
 		},
 		mcnflag.StringSliceFlag{
 			EnvVar: "VULTR_TAGS",
@@ -99,6 +98,12 @@ func (d *VultrDriver) GetCreateFlags() []mcnflag.Flag {
 			EnvVar: "VULTR_FIREWALL_GROUP_ID",
 			Name:   "vultr-firewall-group-id",
 			Usage:  "Firewall Group ID you'd like to attach this resource to",
+		},
+		mcnflag.StringFlag{
+			EnvVar: "VULTR_HOSTNAME",
+			Name:   "vultr-hostname",
+			Usage:  "Hostname you'd like to assign to this resource (default: The supplied machine name)",
+			Value:  d.BaseDriver.MachineName,
 		},
 		mcnflag.StringFlag{
 			EnvVar: "VULTR_IPXE_CHAIN_URL",
@@ -177,9 +182,10 @@ func (d *VultrDriver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 		return fmt.Errorf("vultr-api-key cannot be empty")
 	}
 
+	d.RequestPayloads.InstanceCreateReq.Label = opts.String("vultr-label")
+	d.RequestPayloads.InstanceCreateReq.Hostname = opts.String("vultr-hostname")
 	d.RequestPayloads.InstanceCreateReq.Region = opts.String("vultr-region")
 	d.RequestPayloads.InstanceCreateReq.Plan = opts.String("vultr-vps-plan")
-	d.RequestPayloads.InstanceCreateReq.Label = opts.String("vultr-label")
 	d.RequestPayloads.InstanceCreateReq.Tags = opts.StringSlice("vultr-tags")
 	d.RequestPayloads.InstanceCreateReq.OsID = opts.Int("vultr-os-id")
 	d.RequestPayloads.InstanceCreateReq.ISOID = opts.String("vultr-iso-id")
