@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	defaultOSID       = 445
+	defaultOSID       = 477
 	defaultRegion     = "ewr"
 	defaultPlan       = "vc2-1c-2gb"
 	defaultDockerPort = 2376
@@ -33,10 +33,10 @@ const (
 type VultrDriver struct {
 	*drivers.BaseDriver
 	RequestPayloads struct {
-		*govultr.InstanceCreateReq
+		InstanceCreateReq govultr.InstanceCreateReq
 	}
 	ResponsePayloads struct {
-		*govultr.Instance
+		Instance *govultr.Instance
 	}
 	APIKey     string
 	DockerPort int
@@ -77,7 +77,7 @@ func (d *VultrDriver) GetCreateFlags() []mcnflag.Flag {
 		mcnflag.IntFlag{
 			EnvVar: "VULTR_OSID",
 			Name:   "vultr-os-id",
-			Usage:  "Operating system ID (default: [445] Ubuntu 21.04)",
+			Usage:  "Operating system ID (default: [477] Debian 11)",
 			Value:  defaultOSID,
 		},
 		mcnflag.StringFlag{
@@ -226,7 +226,7 @@ func (d *VultrDriver) Create() (err error) {
 	d.addSSHKeyToCloudInitUserData()
 
 	// Create instance
-	d.ResponsePayloads.Instance, err = vultrClient.Instance.Create(context.Background(), d.RequestPayloads.InstanceCreateReq)
+	d.ResponsePayloads.Instance, err = vultrClient.Instance.Create(context.Background(), &d.RequestPayloads.InstanceCreateReq)
 	if err != nil {
 		log.Errorf("Error creating the VPS: [%v]", err)
 		return err
@@ -341,6 +341,10 @@ func (d *VultrDriver) GetState() (_state state.State, err error) {
 		return _state, err
 	}
 
+	log.Infof("Status: %s", d.ResponsePayloads.Instance.Status)
+	log.Infof("ServerStatus: %s", d.ResponsePayloads.Instance.ServerStatus)
+	log.Infof("PowerStatus: %s", d.ResponsePayloads.Instance.PowerStatus)
+
 	switch d.ResponsePayloads.Instance.Status {
 	case "pending":
 		return state.Starting, nil
@@ -351,10 +355,15 @@ func (d *VultrDriver) GetState() (_state state.State, err error) {
 	}
 
 	switch d.ResponsePayloads.Instance.ServerStatus {
-	case "installingbooting":
-		return state.Starting, nil
+	case "none":
+		return state.None, nil
 	case "locked":
 		return state.Error, nil
+	// This ServerStatus errs on the side of safety and exceeds maximum retries
+	//case "installingbooting":
+	//	return state.Starting, nil
+	case "ok":
+		return state.Running, nil
 	}
 
 	switch d.ResponsePayloads.Instance.PowerStatus {
@@ -363,6 +372,7 @@ func (d *VultrDriver) GetState() (_state state.State, err error) {
 	case "stopped":
 		return state.Stopped, nil
 	}
+
 	return state.None, nil
 }
 
@@ -404,7 +414,9 @@ func (d *VultrDriver) addSSHKeyToCloudInitUserData() error {
 	}
 
 	// Userdata string
-	userdata := []byte("#cloud-config\r\nusers:\r\n - name: root\r\n   ssh_authorized_keys:\r\n    - " + string(pubKey))
+	sshKey := []byte("#cloud-config\r\nusers:\r\n - name: root\r\n   ssh_authorized_keys:\r\n    - " + string(pubKey))
+	allowDockerThroughFirewall := []byte("\r\nruncmd:\r\n  - ufw allow " + cast.ToString(d.DockerPort))
+	userdata := append(sshKey, allowDockerThroughFirewall...)
 
 	// TODO: Handle issue where UserData might not be empty, right now we're straight up overriding it
 
