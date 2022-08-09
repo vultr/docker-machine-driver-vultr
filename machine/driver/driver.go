@@ -27,6 +27,8 @@ const (
 	defaultDockerPort  = 2376
 	defaultBackups     = "disabled"
 	defaultLabelPrefix = "vultr-rancher-node-"
+	rancherCatalogPort = 443
+	k8APIServer        = 6443
 )
 
 // VultrDriver ... driver struct
@@ -265,7 +267,7 @@ func (d *VultrDriver) Create() (err error) {
 	}
 
 	// Allow docker through the firewall. Every vultr OS uses ufw
-	d.appendToCloudInitUserDataCloudConfig([]byte("\r\nruncmd:\r\n  - ufw allow " + cast.ToString(d.DockerPort)))
+	d.appendToCloudInitUserDataCloudConfig([]byte("\r\nruncmd:\r\n  - ufw allow " + cast.ToString(d.DockerPort) + "\r\n  - ufw allow " + cast.ToString(rancherCatalogPort) + "\r\n  - ufw allow " + cast.ToString(rancherCatalogPort)))
 
 	// Create instance
 	d.ResponsePayloads.Instance, err = vultrClient.Instance.Create(context.Background(), &d.RequestPayloads.InstanceCreateReq)

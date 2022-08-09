@@ -1,12 +1,17 @@
 # docker-machine-driver-vultr
 
-Vultr Driver Plugin for docker-machine.
+Vultr Driver for docker-machine and Rancher Node Driver
 
-## Install
- 
+## Install as a docker-machine driver
+
 `docker-machine` is required, [see the installation documentation](https://gitlab.com/gitlab-org/ci-cd/docker-machine/-/blob/main/docs/install-machine.md).
 
-Then, install the `docker-machine-driver-vultr` driver.
+Then install the `docker-machine-driver-vultr` driver by copying the build to `/usr/local/bin/`.
+
+## Install as a Rancher Node Driver
+
+Use overlay2 as the storage engine
+
 
 ### Installing from source
 
@@ -33,10 +38,12 @@ make install
 
 ## Run
 
-You will need a Vultr APIv4 Personal API key. Is only available in members area <https://my.vultr.com/settings/#settingsapi>, you need to create an account (<https://www.vultr.com/register/>) to get there  
+You will need a Vultr APIv4 Personal API key. Is only available in members area <https://my.vultr.com/settings/#settingsapi>, you need to create an account (<https://www.vultr.com/register/>) to get there
+
+You will also need to use the 19.03.9 install enginer as shown in the example below
 
 ```bash
-docker-machine create -d vultr --vultr-api-key=<vultr-api-key> <machine-name>
+docker-machine create -d vultr --vultr-api-key=<vultr-api-key> --engine-install-url "https://releases.rancher.com/install-docker/19.03.9.sh" <machine-name>
 ```
 
 ### Options
@@ -90,7 +97,7 @@ eval $(docker-machine env vultr)
 ```bash
 $ docker-machine ls
 NAME      ACTIVE   DRIVER   STATE     URL                         SWARM   DOCKER     ERRORS
-vultr     -        vultr    Running   tcp://207.246.87.114:2376           v19.03.5 
+vultr     -        vultr    Running   tcp://207.246.87.114:2376           v19.03.5
 
 $ docker-machine rm vultr
 About to remove vultr
