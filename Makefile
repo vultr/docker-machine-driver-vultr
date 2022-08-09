@@ -1,42 +1,29 @@
-OUT_DIR := out
-PROG := docker-machine-driver-vultr
+SOURCES := $(shell find . -name '*.go')
+PKG := $(shell go list ./machine/)
+PKG_LIST := $(shell go list ${PKG}/... | grep -v /vendor/)
+BINARY := docker-machine-driver-vultr
 
-GOOS ?= $(shell go env GOOS)
-GOARCH ?= $(shell go env GOARCH)
+BUILD=`date +%FT%T%z`
+PLATFORM=`uname`
 
-export GO111MODULE=on
+LDFLAGS=-ldflags "-w -s"
 
-ifeq ($(GOOS),windows)
-	BIN_SUFFIX := ".exe"
-endif
+build: docker-machine-driver-vultr
 
-.PHONY: build
-build: dep
-	go build -ldflags "-X github.com/vultr/docker-machine-driver-vultr/pkg/drivers/vultr.VERSION=`git describe --always`" -o $(OUT_DIR)/$(PROG)$(BIN_SUFFIX) ./
+test: $(SOURCES)
+	go test -v -short -race -timeout 30s ./...
 
-.PHONY: dep
-dep:
-	@GO111MODULE=on
-	go get -d ./
-	go mod verify
-
-.PHONY: test
-test: dep
-	go test -race ./...
-
-.PHONY: check
-check:
-	gofmt -l -s -d pkg/
-	go vet
-
-.PHONY: clean
 clean:
-	$(RM) $(OUT_DIR)/$(PROG)$(BIN_SUFFIX)
+	@rm -rf build/$(BINARY)
 
-.PHONY: uninstall
-uninstall:
-	$(RM) $(GOPATH)/bin/$(PROG)$(BIN_SUFFIX)
+local:
+	CGO_ENABLED=0 go build -o /usr/local/bin/$(BINARY) -${LDFLAGS} machine/main.go
 
-.PHONY: install
-install: build
-	go install
+check: ## Static Check Golang files
+	@staticcheck ./...
+
+vet: ## go vet files
+	@go vet ./...
+
+$(BINARY): $(SOURCES)
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/$(BINARY) -${LDFLAGS} machine/main.go
