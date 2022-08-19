@@ -555,17 +555,13 @@ func (d *VultrDriver) addUFWCommandsToCloudInitUserDataCloudConfig() {
 
 	// Now add all the UFW rules
 	for _, _port := range d.UFWPortsToOpen {
-
-		// Prevent multiple conversions
-		portAsString := cast.ToString(_port)
-
 		// A little insurance to make sure we opened the docker port
-		if portAsString == dockerPortAsString {
+		if _port == dockerPortAsString {
 			dockerPortWasOpened = true
 		}
 
 		// Add to the cloud init user data cloud config
-		d.appendToCloudInitUserDataCloudConfig([]byte("\r\n  - ufw allow " + portAsString))
+		d.appendToCloudInitUserDataCloudConfig([]byte("\r\n  - ufw allow " + _port))
 	}
 
 	// Docker port was NOT opened, lets do that
