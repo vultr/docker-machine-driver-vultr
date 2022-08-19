@@ -286,6 +286,8 @@ func (d *VultrDriver) Create() (err error) {
 			<-time.After(5 * time.Second)
 			continue
 		}
+		// We need to also set the IP in the base driver
+		d.IPAddress = _ip
 		log.Infof("VPS %s is now configured with ip address %s", d.BaseDriver.MachineName, _ip)
 		break
 	}
