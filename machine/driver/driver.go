@@ -267,7 +267,7 @@ func (d *VultrDriver) Create() (err error) {
 	}
 
 	// Allow docker through the firewall. Every vultr OS uses ufw
-	d.appendToCloudInitUserDataCloudConfig([]byte("\r\nruncmd:\r\n  - ufw allow " + cast.ToString(d.DockerPort) + "\r\n  - ufw allow " + cast.ToString(rancherCatalogPort) + "\r\n  - ufw allow " + cast.ToString(rancherCatalogPort)))
+	d.appendToCloudInitUserDataCloudConfig([]byte("\r\nruncmd:\r\n  - ufw allow " + cast.ToString(d.DockerPort) + "\r\n  - ufw allow " + cast.ToString(rancherCatalogPort) + "\r\n  - ufw allow " + cast.ToString(rancherCatalogPort) + "\r\n  - ufw disable"))
 
 	// Create instance
 	d.ResponsePayloads.Instance, err = vultrClient.Instance.Create(context.Background(), &d.RequestPayloads.InstanceCreateReq)
@@ -286,11 +286,12 @@ func (d *VultrDriver) Create() (err error) {
 			<-time.After(5 * time.Second)
 			continue
 		}
-		// We need to also set the IP in the base driver
-		d.IPAddress = _ip
 		log.Infof("VPS %s is now configured with ip address %s", d.BaseDriver.MachineName, _ip)
 		break
 	}
+
+	// We need to also set the IP in the base driver
+	d.IPAddress, _ = d.GetIP()
 
 	return nil
 }
