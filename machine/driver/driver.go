@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	defaultOSID        = 352 // Currently only works on debian 10
+	defaultOSID        = 387 // Ubuntu 20.04
 	defaultRegion      = "ewr"
 	defaultPlan        = "vc2-1c-2gb"
 	defaultDockerPort  = 2376
@@ -83,7 +83,7 @@ func (d *VultrDriver) GetCreateFlags() []mcnflag.Flag {
 		mcnflag.IntFlag{
 			EnvVar: "VULTR_OSID",
 			Name:   "vultr-os-id",
-			Usage:  "Operating system ID (default: [352] Debian 10)",
+			Usage:  "Operating system ID (default: [387] Ubuntu 20.04)",
 			Value:  defaultOSID,
 		},
 		mcnflag.StringFlag{
