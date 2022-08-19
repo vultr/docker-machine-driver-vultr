@@ -27,8 +27,6 @@ const (
 	defaultDockerPort  = 2376
 	defaultBackups     = "disabled"
 	defaultLabelPrefix = "vultr-rancher-node-"
-	rancherCatalogPort = 443
-	k8APIServer        = 6443
 )
 
 // VultrDriver ... driver struct
@@ -40,8 +38,15 @@ type VultrDriver struct {
 	ResponsePayloads struct {
 		Instance *govultr.Instance
 	}
-	APIKey     string
-	DockerPort int
+	APIKey         string
+	DockerPort     int
+	UFWPortsToOpen []string
+	DisableUFW     bool
+}
+
+// getDefaultUFWPortsToOpen ...
+func (d *VultrDriver) getDefaultUFWPortsToOpen() []string {
+	return []string{"22", "80", "443", "2376", "2379", "2380", "6443", "9099", "9796", "10250", "10254", "30000:32767/tcp", "8472/udp", "30000:32767/udp"}
 }
 
 // GetCreateFlags ... returns the mcnflag.Flag slice representing the flags
@@ -173,6 +178,17 @@ func (d *VultrDriver) GetCreateFlags() []mcnflag.Flag {
 			Usage:  "Port the docker machine will host on (default: 2376)",
 			Value:  defaultDockerPort,
 		},
+		mcnflag.BoolFlag{
+			EnvVar: "VULTR_DISABLE_OS_FIREWALL",
+			Name:   "vultr-disable-os-firewall",
+			Usage:  "Disable the UFW firewall that comes standard on every Vultr OS (default: false)",
+		},
+		mcnflag.StringSliceFlag{
+			EnvVar: "VULTR_PORTS_TO_OPEN_ON_OS_FIREWALL",
+			Name:   "vultr-ports-to-open-on-os-firewall",
+			Usage:  "Comma delimited list of ports to open on the UFW firewall that comes standard on every Vultr OS (default: " + strings.Join(d.getDefaultUFWPortsToOpen()[:], ",") + " )",
+			Value:  d.getDefaultUFWPortsToOpen(),
+		},
 	}
 }
 
@@ -237,6 +253,8 @@ func (d *VultrDriver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	d.RequestPayloads.InstanceCreateReq.ReservedIPv4 = opts.String("vultr-floating-ipv4-id")
 	d.RequestPayloads.InstanceCreateReq.ActivationEmail = utils.BoolPtr(opts.Bool("vultr-send-activation-email"))
 	d.DockerPort = opts.Int("vultr-docker-port")
+	d.DisableUFW = opts.Bool("vultr-disable-os-firewall")
+	d.UFWPortsToOpen = opts.StringSlice("vultr-ports-to-open-on-os-firewall")
 
 	return nil
 }
@@ -266,8 +284,8 @@ func (d *VultrDriver) Create() (err error) {
 		d.addSSHKeyToCloudInitUserData()
 	}
 
-	// Allow docker through the firewall. Every vultr OS uses ufw
-	d.appendToCloudInitUserDataCloudConfig([]byte("\r\nruncmd:\r\n  - ufw allow " + cast.ToString(d.DockerPort) + "\r\n  - ufw allow " + cast.ToString(rancherCatalogPort) + "\r\n  - ufw allow " + cast.ToString(rancherCatalogPort) + "\r\n  - ufw disable"))
+	// Add all the UFW commands to the cloud init user config
+	d.addUFWCommandsToCloudInitUserDataCloudConfig()
 
 	// Create instance
 	d.ResponsePayloads.Instance, err = vultrClient.Instance.Create(context.Background(), &d.RequestPayloads.InstanceCreateReq)
@@ -523,6 +541,42 @@ func (d *VultrDriver) validatePlan() error {
 	}
 
 	return notAvailableErr
+}
+
+// addUFWCommandsToCloudInitUserDataCloudConfig ...
+func (d *VultrDriver) addUFWCommandsToCloudInitUserDataCloudConfig() {
+
+	// First add the run command
+	d.appendToCloudInitUserDataCloudConfig([]byte("\r\nruncmd:"))
+
+	// Lets keep track of this
+	var dockerPortWasOpened bool
+	dockerPortAsString := cast.ToString(d.DockerPort)
+
+	// Now add all the UFW rules
+	for _, _port := range d.UFWPortsToOpen {
+
+		// Prevent multiple conversions
+		portAsString := cast.ToString(_port)
+
+		// A little insurance to make sure we opened the docker port
+		if portAsString == dockerPortAsString {
+			dockerPortWasOpened = true
+		}
+
+		// Add to the cloud init user data cloud config
+		d.appendToCloudInitUserDataCloudConfig([]byte("\r\n  - ufw allow " + portAsString))
+	}
+
+	// Docker port was NOT opened, lets do that
+	if !dockerPortWasOpened {
+		d.appendToCloudInitUserDataCloudConfig([]byte("\r\n  - ufw allow " + dockerPortAsString))
+	}
+
+	// Disable firewall
+	if d.DisableUFW {
+		d.appendToCloudInitUserDataCloudConfig([]byte("\r\n  - ufw disable"))
+	}
 }
 
 // appendToCloudInitUserDataCloudConfig ... appends to the #cloud-config of the userdata
