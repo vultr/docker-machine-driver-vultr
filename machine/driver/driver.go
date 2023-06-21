@@ -29,9 +29,10 @@ const (
 	defaultLabelPrefix = "vultr-rancher-node-"
 )
 
-// VultrDriver ... driver struct
-type VultrDriver struct {
+// Driver ... driver struct
+type Driver struct {
 	*drivers.BaseDriver
+	client          *govultr.Client
 	RequestPayloads struct {
 		InstanceCreateReq govultr.InstanceCreateReq
 	}
@@ -45,13 +46,13 @@ type VultrDriver struct {
 }
 
 // getDefaultUFWPortsToOpen ...
-func (d *VultrDriver) getDefaultUFWPortsToOpen() []string {
+func (d Driver) getDefaultUFWPortsToOpen() []string {
 	return []string{"22", "80", "443", "2376", "2379", "2380", "6443", "9099", "9796", "10250", "10254", "30000:32767/tcp", "8472/udp", "30000:32767/udp"}
 }
 
 // GetCreateFlags ... returns the mcnflag.Flag slice representing the flags
 // that can be set, their descriptions and defaults.
-func (d *VultrDriver) GetCreateFlags() []mcnflag.Flag {
+func (d Driver) GetCreateFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{
 		mcnflag.StringFlag{
 			EnvVar: "VULTR_API_KEY",
@@ -193,11 +194,14 @@ func (d *VultrDriver) GetCreateFlags() []mcnflag.Flag {
 }
 
 // SetConfigFromFlags ... configures the driver with the object that was returned by RegisterCreateFlags
-func (d *VultrDriver) SetConfigFromFlags(opts drivers.DriverOptions) error {
+func (d Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	d.APIKey = opts.String("vultr-api-key")
 	if len(d.APIKey) == 0 {
 		return fmt.Errorf("vultr-api-key cannot be empty")
 	}
+
+	// Setup vultr client
+	d.client = d.getGoVultrClient()
 
 	defaultHostnameAndLabel := defaultLabelPrefix + cast.ToString(time.Now().Unix())
 
@@ -260,8 +264,8 @@ func (d *VultrDriver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 }
 
 // NewDriver ... instanciate new driver
-func NewDriver(hostname, storePath string) *VultrDriver {
-	return &VultrDriver{
+func NewDriver(hostname, storePath string) *Driver {
+	return &Driver{
 		BaseDriver: &drivers.BaseDriver{
 			MachineName: hostname,
 			StorePath:   storePath,
@@ -270,9 +274,7 @@ func NewDriver(hostname, storePath string) *VultrDriver {
 }
 
 // Create ... Creates the VPS
-func (d *VultrDriver) Create() (err error) {
-	vultrClient := d.getGoVultrClient()
-
+func (d Driver) Create() (err error) {
 	// Validate the plan is available
 	if err := d.validatePlan(); err != nil {
 		log.Errorf("Error validating the plan: [%v]", err)
@@ -288,7 +290,7 @@ func (d *VultrDriver) Create() (err error) {
 	d.addUFWCommandsToCloudInitUserDataCloudConfig()
 
 	// Create instance
-	d.ResponsePayloads.Instance, err = vultrClient.Instance.Create(context.Background(), &d.RequestPayloads.InstanceCreateReq)
+	d.ResponsePayloads.Instance, err = d.client.Instance.Create(context.Background(), &d.RequestPayloads.InstanceCreateReq)
 	if err != nil {
 		log.Errorf("Error creating the VPS: [%v]", err)
 		return err
@@ -315,10 +317,8 @@ func (d *VultrDriver) Create() (err error) {
 }
 
 // Start ... starts an instance
-func (d *VultrDriver) Start() error {
-	vultrClient := d.getGoVultrClient()
-
-	err := vultrClient.Instance.Start(context.Background(), d.ResponsePayloads.Instance.ID)
+func (d Driver) Start() error {
+	err := d.client.Instance.Start(context.Background(), d.ResponsePayloads.Instance.ID)
 	if err != nil {
 		log.Errorf("Error starting VPS %s: [%v]", d.BaseDriver.MachineName, err)
 		return err
@@ -328,10 +328,8 @@ func (d *VultrDriver) Start() error {
 }
 
 // Restart ... power cycles an instance
-func (d *VultrDriver) Restart() error {
-	vultrClient := d.getGoVultrClient()
-
-	err := vultrClient.Instance.Reboot(context.Background(), d.ResponsePayloads.Instance.ID)
+func (d Driver) Restart() error {
+	err := d.client.Instance.Reboot(context.Background(), d.ResponsePayloads.Instance.ID)
 	if err != nil {
 		log.Errorf("Error power cycling VPS %s: [%v]", d.BaseDriver.MachineName, err)
 		return err
@@ -341,10 +339,8 @@ func (d *VultrDriver) Restart() error {
 }
 
 // Kill ... stops a host forcefully
-func (d *VultrDriver) Kill() error {
-	vultrClient := d.getGoVultrClient()
-
-	err := vultrClient.Instance.Halt(context.Background(), d.ResponsePayloads.Instance.ID)
+func (d Driver) Kill() error {
+	err := d.client.Instance.Halt(context.Background(), d.ResponsePayloads.Instance.ID)
 	if err != nil {
 		log.Errorf("Error stopping VPS %s: [%v]", d.BaseDriver.MachineName, err)
 		return err
@@ -354,10 +350,8 @@ func (d *VultrDriver) Kill() error {
 }
 
 // Remove ... deltes a host
-func (d *VultrDriver) Remove() error {
-	vultrClient := d.getGoVultrClient()
-
-	err := vultrClient.Instance.Delete(context.Background(), d.ResponsePayloads.Instance.ID)
+func (d Driver) Remove() error {
+	err := d.client.Instance.Delete(context.Background(), d.ResponsePayloads.Instance.ID)
 	if err != nil {
 		log.Errorf("Error deleting VPS %s: [%v]", d.BaseDriver.MachineName, err)
 		return err
@@ -367,7 +361,7 @@ func (d *VultrDriver) Remove() error {
 }
 
 // GetIP ... returns an IP or hostname that this host is available at
-func (d *VultrDriver) GetIP() (ip string, err error) {
+func (d Driver) GetIP() (ip string, err error) {
 	// IP is set, all is well
 	if len(d.ResponsePayloads.Instance.MainIP) > 0 && d.ResponsePayloads.Instance.MainIP != "0.0.0.0" {
 		return d.ResponsePayloads.Instance.MainIP, nil
@@ -389,7 +383,7 @@ func (d *VultrDriver) GetIP() (ip string, err error) {
 }
 
 // GetURL ... returns a Docker compatible host URL for connecting to this host
-func (d *VultrDriver) GetURL() (ip string, err error) {
+func (d Driver) GetURL() (ip string, err error) {
 	ip, err = d.GetIP()
 	if err != nil {
 		return ip, err
@@ -398,8 +392,7 @@ func (d *VultrDriver) GetURL() (ip string, err error) {
 }
 
 // GetState ... returns the state that the host is in (running, stopped, etc)
-func (d *VultrDriver) GetState() (_state state.State, err error) {
-
+func (d Driver) GetState() (_state state.State, err error) {
 	// set this instance info again
 	err = d.setVPSInstanceResponseAgain()
 	if err != nil {
@@ -442,25 +435,23 @@ func (d *VultrDriver) GetState() (_state state.State, err error) {
 }
 
 // Stop ... should gracefully stop instance but we're just going to halt for now
-func (d *VultrDriver) Stop() error {
+func (d Driver) Stop() error {
 	return d.Kill()
 }
 
 // DriverName ... returns the name of the driver
-func (d *VultrDriver) DriverName() string {
+func (d Driver) DriverName() string {
 	return "vultr"
 }
 
 // GetSSHHostname ... returns ip for use with ssh
-func (d *VultrDriver) GetSSHHostname() (string, error) {
+func (d Driver) GetSSHHostname() (string, error) {
 	return d.GetIP()
 }
 
 // setVPSInstanceResponseAgain ... sets the VPS info again
-func (d *VultrDriver) setVPSInstanceResponseAgain() (err error) {
-	vultrClient := d.getGoVultrClient()
-
-	d.ResponsePayloads.Instance, err = vultrClient.Instance.Get(context.Background(), d.ResponsePayloads.Instance.ID)
+func (d Driver) setVPSInstanceResponseAgain() (err error) {
+	d.ResponsePayloads.Instance, err = d.client.Instance.Get(context.Background(), d.ResponsePayloads.Instance.ID)
 	if err != nil {
 		log.Errorf("Error getting the VPS instance info: [%v]", err)
 		return err
@@ -470,7 +461,7 @@ func (d *VultrDriver) setVPSInstanceResponseAgain() (err error) {
 }
 
 // addSSHKeyToCloudInitUserData ... generates a new sshkey and adds it to cloud-init userdata cloud-config
-func (d *VultrDriver) addSSHKeyToCloudInitUserData() error {
+func (d Driver) addSSHKeyToCloudInitUserData() error {
 	// Gets a new public SSH Key
 	pubKey, err := d.getNewPublicSSHKey()
 	if err != nil {
@@ -486,7 +477,7 @@ func (d *VultrDriver) addSSHKeyToCloudInitUserData() error {
 }
 
 // getNewPublicSSHKey ... generates a fresh public ssh key besed off the path to the private ssh key
-func (d *VultrDriver) getNewPublicSSHKey() (publicKey []byte, err error) {
+func (d Driver) getNewPublicSSHKey() (publicKey []byte, err error) {
 	// Generate Public SSH Key
 	err = ssh.GenerateSSHKey(d.GetSSHKeyPath())
 	if err != nil {
@@ -507,12 +498,11 @@ func (d *VultrDriver) getNewPublicSSHKey() (publicKey []byte, err error) {
 }
 
 // validatePlan ... checks plan is available in region
-func (d *VultrDriver) validatePlan() error {
-	vultrClient := d.getGoVultrClient()
+func (d Driver) validatePlan() error {
 
 	// List plan type
 	plantype := strings.Split(d.RequestPayloads.InstanceCreateReq.Plan, "-")
-	plans, _, err := vultrClient.Plan.List(context.Background(), plantype[0], &govultr.ListOptions{Region: d.RequestPayloads.InstanceCreateReq.Region, PerPage: 500})
+	plans, _, err := d.client.Plan.List(context.Background(), plantype[0], &govultr.ListOptions{Region: d.RequestPayloads.InstanceCreateReq.Region, PerPage: 500})
 	if err != nil {
 		log.Errorf("Error getting getting Plan List: [%v]", err)
 		return err
@@ -544,7 +534,7 @@ func (d *VultrDriver) validatePlan() error {
 }
 
 // addUFWCommandsToCloudInitUserDataCloudConfig ...
-func (d *VultrDriver) addUFWCommandsToCloudInitUserDataCloudConfig() {
+func (d Driver) addUFWCommandsToCloudInitUserDataCloudConfig() {
 
 	// First add the run command
 	d.appendToCloudInitUserDataCloudConfig([]byte("\r\nruncmd:"))
@@ -576,7 +566,7 @@ func (d *VultrDriver) addUFWCommandsToCloudInitUserDataCloudConfig() {
 }
 
 // appendToCloudInitUserDataCloudConfig ... appends to the #cloud-config of the userdata
-func (d *VultrDriver) appendToCloudInitUserDataCloudConfig(additionalCloudConfig []byte) {
+func (d Driver) appendToCloudInitUserDataCloudConfig(additionalCloudConfig []byte) {
 	var userData []byte
 	// There's nothing so lets give it the heading
 	if len(d.RequestPayloads.InstanceCreateReq.UserData) == 0 {
@@ -595,8 +585,8 @@ func (d *VultrDriver) appendToCloudInitUserDataCloudConfig(additionalCloudConfig
 	// TODO: Handle issue where UserData might not be empty and there's a more complex yaml we need to merge
 }
 
-// getGoVultrClient ... returns a govultr client
-func (d *VultrDriver) getGoVultrClient() *govultr.Client {
+// getGod.client ... returns a govultr client
+func (d Driver) getGoVultrClient() *govultr.Client {
 	// Setup govultr client
 	config := &oauth2.Config{}
 	ctx := context.Background()
