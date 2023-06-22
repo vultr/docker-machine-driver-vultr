@@ -2,31 +2,26 @@ package driver
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"strings"
 	"time"
 
 	"github.com/docker/machine/libmachine/drivers"
 	"github.com/docker/machine/libmachine/mcnflag"
-	"github.com/docker/machine/libmachine/ssh"
 	"github.com/docker/machine/libmachine/state"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cast"
 	"github.com/vultr/docker-machine-driver-vultr/utils"
-	govultr "github.com/vultr/govultr/v2"
-	"golang.org/x/oauth2"
+	"github.com/vultr/govultr/v2"
 )
 
 const (
-	defaultOSID        = 387 // Ubuntu 20.04
-	defaultRegion      = "ewr"
-	defaultPlan        = "vc2-1c-2gb"
-	defaultDockerPort  = 2376
-	defaultBackups     = "disabled"
-	defaultLabelPrefix = "vultr-rancher-node-"
+	defaultOSID       = 387 // Ubuntu 20.04
+	defaultRegion     = "ewr"
+	defaultPlan       = "vc2-1c-2gb"
+	defaultDockerPort = 2376
+	defaultBackups    = false
 )
 
 // Driver ... driver struct
@@ -71,11 +66,6 @@ func (d Driver) GetCreateFlags() []mcnflag.Flag {
 			Usage:  "VPS Plan (default: [vc2-1c-2gb] 1 vCPU, 2GB RAM, 55GB SSD)",
 			Value:  defaultPlan,
 		},
-		mcnflag.StringFlag{
-			EnvVar: "VULTR_LABEL",
-			Name:   "vultr-label",
-			Usage:  "Resource label (default: The supplied machine name)",
-		},
 		mcnflag.StringSliceFlag{
 			EnvVar: "VULTR_TAGS",
 			Name:   "vultr-tags",
@@ -106,11 +96,6 @@ func (d Driver) GetCreateFlags() []mcnflag.Flag {
 			EnvVar: "VULTR_FIREWALL_GROUP_ID",
 			Name:   "vultr-firewall-group-id",
 			Usage:  "Firewall Group ID you'd like to attach this resource to",
-		},
-		mcnflag.StringFlag{
-			EnvVar: "VULTR_HOSTNAME",
-			Name:   "vultr-hostname",
-			Usage:  "Hostname you'd like to assign to this resource (default: The supplied machine name)",
 		},
 		mcnflag.StringFlag{
 			EnvVar: "VULTR_IPXE_CHAIN_URL",
@@ -147,11 +132,10 @@ func (d Driver) GetCreateFlags() []mcnflag.Flag {
 			Name:   "vultr-ssh-key-ids",
 			Usage:  "SSH Key IDs you'd like installed on this resource. If no SSH Key ID is provided, one will be generated for you",
 		},
-		mcnflag.StringFlag{
+		mcnflag.BoolFlag{
 			EnvVar: "VULTR_VPS_BACKUPS",
 			Name:   "vultr-vps-backups",
 			Usage:  "Enable automatic backups of this VPS (default: disabled)",
-			Value:  defaultBackups,
 		},
 		mcnflag.BoolFlag{
 			EnvVar: "VULTR_DDOS_PROTECTION",
@@ -203,39 +187,25 @@ func (d Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	// Setup vultr client
 	d.client = d.getGoVultrClient()
 
-	defaultHostnameAndLabel := defaultLabelPrefix + cast.ToString(time.Now().Unix())
-
-	// ** Set Label ** //
-	// We have nothing to work with, use a default label
-	if len(opts.String("vultr-label")) == 0 && len(d.BaseDriver.MachineName) == 0 {
-		d.RequestPayloads.InstanceCreateReq.Label = defaultHostnameAndLabel
+	// check if MachineName is set
+	if d.BaseDriver.MachineName != "" {
+		return fmt.Errorf("machine name is not set")
 	}
 
-	// We have a label set, we'll use that
-	if len(opts.String("vultr-label")) > 0 {
-		d.RequestPayloads.InstanceCreateReq.Label = opts.String("vultr-label")
+	// ** Set Hostname and Label ** //
+	d.RequestPayloads.InstanceCreateReq.Hostname = d.BaseDriver.MachineName
+	d.RequestPayloads.InstanceCreateReq.Label = d.BaseDriver.MachineName
+
+	// ** Handle VPC ** //
+	enableVPC := opts.Bool("vultr-enable-vpc")
+	vpcSlice := opts.StringSlice("vultr-vpc-ids")
+
+	if enableVPC && len(vpcSlice) > 0 {
+		return fmt.Errorf("if enable-vpc is set you cannot attach additional VPC's")
 	}
 
-	// there's no label but we have a machine name so we'll use that
-	if len(opts.String("vultr-label")) == 0 && len(d.BaseDriver.MachineName) > 0 {
-		d.RequestPayloads.InstanceCreateReq.Label = d.BaseDriver.MachineName
-	}
-
-	// ** Set Hostname ** //
-	// We have nothing to work with, use a default label as the hostname
-	if len(opts.String("vultr-hostname")) == 0 && len(d.BaseDriver.MachineName) == 0 {
-		d.RequestPayloads.InstanceCreateReq.Hostname = defaultHostnameAndLabel
-	}
-
-	// We have a hostname set, we'll use that
-	if len(opts.String("vultr-hostname")) > 0 {
-		d.RequestPayloads.InstanceCreateReq.Hostname = opts.String("vultr-hostname")
-	}
-
-	// there's no hostname but we have a machine name so we'll use that
-	if len(opts.String("vultr-hostname")) == 0 && len(d.BaseDriver.MachineName) > 0 {
-		d.RequestPayloads.InstanceCreateReq.Hostname = d.BaseDriver.MachineName
-	}
+	// ** Set Backups **//
+	d.RequestPayloads.InstanceCreateReq.Backups = getBackupStatus(opts.Bool("vultr-vps-backups"))
 
 	d.RequestPayloads.InstanceCreateReq.Region = opts.String("vultr-region")
 	d.RequestPayloads.InstanceCreateReq.Plan = opts.String("vultr-vps-plan")
@@ -251,11 +221,12 @@ func (d Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	d.RequestPayloads.InstanceCreateReq.EnableVPC = utils.BoolPtr(opts.Bool("vultr-enable-vpc"))
 	d.RequestPayloads.InstanceCreateReq.AttachVPC = opts.StringSlice("vultr-vpc-ids")
 	d.RequestPayloads.InstanceCreateReq.SSHKeys = opts.StringSlice("vultr-ssh-key-ids")
-	d.RequestPayloads.InstanceCreateReq.Backups = opts.String("vultr-vps-backups")
 	d.RequestPayloads.InstanceCreateReq.DDOSProtection = utils.BoolPtr(opts.Bool("vultr-ddos-protection"))
 	d.RequestPayloads.InstanceCreateReq.UserData = opts.String("vultr-cloud-init-user-data")
 	d.RequestPayloads.InstanceCreateReq.ReservedIPv4 = opts.String("vultr-floating-ipv4-id")
 	d.RequestPayloads.InstanceCreateReq.ActivationEmail = utils.BoolPtr(opts.Bool("vultr-send-activation-email"))
+
+	// Docker stuff...
 	d.DockerPort = opts.Int("vultr-docker-port")
 	d.DisableUFW = opts.Bool("vultr-disable-os-firewall")
 	d.UFWPortsToOpen = opts.StringSlice("vultr-ports-to-open-on-os-firewall")
@@ -349,7 +320,7 @@ func (d Driver) Kill() error {
 	return nil
 }
 
-// Remove ... deltes a host
+// Remove ... deletes a host
 func (d Driver) Remove() error {
 	err := d.client.Instance.Delete(context.Background(), d.ResponsePayloads.Instance.ID)
 	if err != nil {
@@ -458,138 +429,4 @@ func (d Driver) setVPSInstanceResponseAgain() (err error) {
 	}
 
 	return nil
-}
-
-// addSSHKeyToCloudInitUserData ... generates a new sshkey and adds it to cloud-init userdata cloud-config
-func (d Driver) addSSHKeyToCloudInitUserData() error {
-	// Gets a new public SSH Key
-	pubKey, err := d.getNewPublicSSHKey()
-	if err != nil {
-		log.Errorf("Error getting new public ssh key: %v", err)
-		return err
-	}
-
-	// Add new authorized key to user data so cloud-init can add it
-	sshKey := []byte("\r\nusers:\r\n - name: root\r\n   ssh_authorized_keys:\r\n    - " + string(pubKey))
-	d.appendToCloudInitUserDataCloudConfig(sshKey)
-
-	return nil
-}
-
-// getNewPublicSSHKey ... generates a fresh public ssh key besed off the path to the private ssh key
-func (d Driver) getNewPublicSSHKey() (publicKey []byte, err error) {
-	// Generate Public SSH Key
-	err = ssh.GenerateSSHKey(d.GetSSHKeyPath())
-	if err != nil {
-		log.Errorf("Error generating public ssh key: %v", err)
-		return publicKey, err
-	}
-
-	// Grab the SSH key we just created
-	publicKey, err = ioutil.ReadFile(fmt.Sprintf("%s.pub", d.GetSSHKeyPath()))
-	if err != nil {
-		log.Errorf("Error reading public ssh key: %v", err)
-		return publicKey, err
-	}
-
-	log.Infof("SSH pub key ready (%s)", publicKey)
-
-	return publicKey, nil
-}
-
-// validatePlan ... checks plan is available in region
-func (d Driver) validatePlan() error {
-
-	// List plan type
-	plantype := strings.Split(d.RequestPayloads.InstanceCreateReq.Plan, "-")
-	plans, _, err := d.client.Plan.List(context.Background(), plantype[0], &govultr.ListOptions{Region: d.RequestPayloads.InstanceCreateReq.Region, PerPage: 500})
-	if err != nil {
-		log.Errorf("Error getting getting Plan List: [%v]", err)
-		return err
-	}
-
-	// Couple scenarios where this error will return
-	notAvailableErr := fmt.Errorf("Plan %s not available in region %s", d.RequestPayloads.InstanceCreateReq.Plan, d.RequestPayloads.InstanceCreateReq.Region)
-
-	// Loop through plans
-	for _, _plan := range plans {
-		// Plan is listed
-		if _plan.ID == d.RequestPayloads.InstanceCreateReq.Plan {
-			// No locations listed
-			if len(_plan.Locations) == 0 {
-				return notAvailableErr
-			}
-
-			// Loop through the locations and try to find a match
-			for _, _location := range _plan.Locations {
-				// Plan found
-				if _location == d.RequestPayloads.InstanceCreateReq.Region {
-					return nil
-				}
-			}
-		}
-	}
-
-	return notAvailableErr
-}
-
-// addUFWCommandsToCloudInitUserDataCloudConfig ...
-func (d Driver) addUFWCommandsToCloudInitUserDataCloudConfig() {
-
-	// First add the run command
-	d.appendToCloudInitUserDataCloudConfig([]byte("\r\nruncmd:"))
-
-	// Lets keep track of this
-	var dockerPortWasOpened bool
-	dockerPortAsString := cast.ToString(d.DockerPort)
-
-	// Now add all the UFW rules
-	for _, _port := range d.UFWPortsToOpen {
-		// A little insurance to make sure we opened the docker port
-		if _port == dockerPortAsString {
-			dockerPortWasOpened = true
-		}
-
-		// Add to the cloud init user data cloud config
-		d.appendToCloudInitUserDataCloudConfig([]byte("\r\n  - ufw allow " + _port))
-	}
-
-	// Docker port was NOT opened, lets do that
-	if !dockerPortWasOpened {
-		d.appendToCloudInitUserDataCloudConfig([]byte("\r\n  - ufw allow " + dockerPortAsString))
-	}
-
-	// Disable firewall
-	if d.DisableUFW {
-		d.appendToCloudInitUserDataCloudConfig([]byte("\r\n  - ufw disable"))
-	}
-}
-
-// appendToCloudInitUserDataCloudConfig ... appends to the #cloud-config of the userdata
-func (d Driver) appendToCloudInitUserDataCloudConfig(additionalCloudConfig []byte) {
-	var userData []byte
-	// There's nothing so lets give it the heading
-	if len(d.RequestPayloads.InstanceCreateReq.UserData) == 0 {
-		userData = append(userData, []byte("#cloud-config")...)
-	} else {
-		// There's something, we expect it to be Base64 so lets decode it
-		userData, _ = base64.StdEncoding.DecodeString(d.RequestPayloads.InstanceCreateReq.UserData)
-	}
-
-	// Append the new data
-	userData = append(userData, additionalCloudConfig...)
-
-	// Put it all back
-	d.RequestPayloads.InstanceCreateReq.UserData = base64.StdEncoding.EncodeToString(userData)
-
-	// TODO: Handle issue where UserData might not be empty and there's a more complex yaml we need to merge
-}
-
-// getGod.client ... returns a govultr client
-func (d Driver) getGoVultrClient() *govultr.Client {
-	// Setup govultr client
-	config := &oauth2.Config{}
-	ctx := context.Background()
-	ts := config.TokenSource(ctx, &oauth2.Token{AccessToken: d.APIKey})
-	return govultr.NewClient(oauth2.NewClient(ctx, ts))
 }
