@@ -11,7 +11,6 @@ import (
 	"github.com/docker/machine/libmachine/mcnflag"
 	"github.com/docker/machine/libmachine/state"
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cast"
 	"github.com/vultr/docker-machine-driver-vultr/utils"
 	"github.com/vultr/govultr/v2"
 )
@@ -21,13 +20,11 @@ const (
 	defaultRegion     = "ewr"
 	defaultPlan       = "vc2-1c-2gb"
 	defaultDockerPort = 2376
-	defaultBackups    = false
 )
 
 // Driver ... driver struct
 type Driver struct {
 	*drivers.BaseDriver
-	client          *govultr.Client
 	RequestPayloads struct {
 		InstanceCreateReq govultr.InstanceCreateReq
 	}
@@ -35,19 +32,20 @@ type Driver struct {
 		Instance *govultr.Instance
 	}
 	APIKey         string
+	InstanceID     string
 	DockerPort     int
 	UFWPortsToOpen []string
 	DisableUFW     bool
 }
 
 // getDefaultUFWPortsToOpen ...
-func (d Driver) getDefaultUFWPortsToOpen() []string {
+func (d *Driver) getDefaultUFWPortsToOpen() []string {
 	return []string{"22", "80", "443", "2376", "2379", "2380", "6443", "9099", "9796", "10250", "10254", "30000:32767/tcp", "8472/udp", "30000:32767/udp"}
 }
 
 // GetCreateFlags ... returns the mcnflag.Flag slice representing the flags
 // that can be set, their descriptions and defaults.
-func (d Driver) GetCreateFlags() []mcnflag.Flag {
+func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{
 		mcnflag.StringFlag{
 			EnvVar: "VULTR_API_KEY",
@@ -178,23 +176,21 @@ func (d Driver) GetCreateFlags() []mcnflag.Flag {
 }
 
 // SetConfigFromFlags ... configures the driver with the object that was returned by RegisterCreateFlags
-func (d Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
+func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	d.APIKey = opts.String("vultr-api-key")
 	if len(d.APIKey) == 0 {
 		return fmt.Errorf("vultr-api-key cannot be empty")
 	}
 
-	// Setup vultr client
-	d.client = d.getGoVultrClient()
-
+	machineName := d.GetMachineName()
 	// check if MachineName is set
-	if d.BaseDriver.MachineName != "" {
+	if d.BaseDriver.MachineName == "" {
 		return fmt.Errorf("machine name is not set")
 	}
 
 	// ** Set Hostname and Label ** //
-	d.RequestPayloads.InstanceCreateReq.Hostname = d.BaseDriver.MachineName
-	d.RequestPayloads.InstanceCreateReq.Label = d.BaseDriver.MachineName
+	d.RequestPayloads.InstanceCreateReq.Hostname = machineName
+	d.RequestPayloads.InstanceCreateReq.Label = machineName
 
 	// ** Handle VPC ** //
 	enableVPC := opts.Bool("vultr-enable-vpc")
@@ -245,7 +241,7 @@ func NewDriver(hostname, storePath string) *Driver {
 }
 
 // Create ... Creates the VPS
-func (d Driver) Create() (err error) {
+func (d *Driver) Create() (err error) {
 	// Validate the plan is available
 	if err := d.validatePlan(); err != nil {
 		log.Errorf("Error validating the plan: [%v]", err)
@@ -261,36 +257,40 @@ func (d Driver) Create() (err error) {
 	d.addUFWCommandsToCloudInitUserDataCloudConfig()
 
 	// Create instance
-	d.ResponsePayloads.Instance, err = d.client.Instance.Create(context.Background(), &d.RequestPayloads.InstanceCreateReq)
+	d.ResponsePayloads.Instance, err = d.getVultrClient().Instance.Create(context.Background(), &d.RequestPayloads.InstanceCreateReq)
 	if err != nil {
 		log.Errorf("Error creating the VPS: [%v]", err)
 		return err
 	}
 
+	d.InstanceID = d.ResponsePayloads.Instance.ID
+
 	log.Infof("VPS %s successfully created", d.BaseDriver.MachineName)
 
 	// Wait for the VPS obtain an IP address
 	for i := 0; i < 60; i++ {
-		_ip, err := d.GetIP()
+		ip, err := d.GetIP()
 		if err != nil {
 			log.Infof("Waiting for VPS %s to get ip assigned", d.BaseDriver.MachineName)
 			<-time.After(5 * time.Second)
 			continue
 		}
-		log.Infof("VPS %s is now configured with ip address %s", d.BaseDriver.MachineName, _ip)
+		log.Infof("VPS %s is now configured with ip address %s", d.BaseDriver.MachineName, ip)
 		break
 	}
 
 	// We need to also set the IP in the base driver
-	d.IPAddress, _ = d.GetIP()
+	d.IPAddress, err = d.GetIP()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
 // Start ... starts an instance
-func (d Driver) Start() error {
-	err := d.client.Instance.Start(context.Background(), d.ResponsePayloads.Instance.ID)
-	if err != nil {
+func (d *Driver) Start() error {
+	if err := d.getVultrClient().Instance.Start(context.Background(), d.InstanceID); err != nil {
 		log.Errorf("Error starting VPS %s: [%v]", d.BaseDriver.MachineName, err)
 		return err
 	}
@@ -299,9 +299,8 @@ func (d Driver) Start() error {
 }
 
 // Restart ... power cycles an instance
-func (d Driver) Restart() error {
-	err := d.client.Instance.Reboot(context.Background(), d.ResponsePayloads.Instance.ID)
-	if err != nil {
+func (d *Driver) Restart() error {
+	if err := d.getVultrClient().Instance.Reboot(context.Background(), d.InstanceID); err != nil {
 		log.Errorf("Error power cycling VPS %s: [%v]", d.BaseDriver.MachineName, err)
 		return err
 	}
@@ -310,9 +309,8 @@ func (d Driver) Restart() error {
 }
 
 // Kill ... stops a host forcefully
-func (d Driver) Kill() error {
-	err := d.client.Instance.Halt(context.Background(), d.ResponsePayloads.Instance.ID)
-	if err != nil {
+func (d *Driver) Kill() error {
+	if err := d.getVultrClient().Instance.Halt(context.Background(), d.InstanceID); err != nil {
 		log.Errorf("Error stopping VPS %s: [%v]", d.BaseDriver.MachineName, err)
 		return err
 	}
@@ -321,9 +319,8 @@ func (d Driver) Kill() error {
 }
 
 // Remove ... deletes a host
-func (d Driver) Remove() error {
-	err := d.client.Instance.Delete(context.Background(), d.ResponsePayloads.Instance.ID)
-	if err != nil {
+func (d *Driver) Remove() error {
+	if err := d.getVultrClient().Instance.Delete(context.Background(), d.InstanceID); err != nil {
 		log.Errorf("Error deleting VPS %s: [%v]", d.BaseDriver.MachineName, err)
 		return err
 	}
@@ -332,7 +329,7 @@ func (d Driver) Remove() error {
 }
 
 // GetIP ... returns an IP or hostname that this host is available at
-func (d Driver) GetIP() (ip string, err error) {
+func (d *Driver) GetIP() (ip string, err error) {
 	// IP is set, all is well
 	if len(d.ResponsePayloads.Instance.MainIP) > 0 && d.ResponsePayloads.Instance.MainIP != "0.0.0.0" {
 		return d.ResponsePayloads.Instance.MainIP, nil
@@ -354,27 +351,28 @@ func (d Driver) GetIP() (ip string, err error) {
 }
 
 // GetURL ... returns a Docker compatible host URL for connecting to this host
-func (d Driver) GetURL() (ip string, err error) {
+func (d *Driver) GetURL() (ip string, err error) {
+	if err := drivers.MustBeRunning(d); err != nil {
+		return "", fmt.Errorf("[GetURL]: could not execute drivers.MustBeRunning: %s", err)
+	}
 	ip, err = d.GetIP()
 	if err != nil {
 		return ip, err
 	}
-	return fmt.Sprintf("tcp://%s", net.JoinHostPort(ip, cast.ToString(d.DockerPort))), nil
+	return fmt.Sprintf("tcp://%s", net.JoinHostPort(ip, "2376")), nil
 }
 
 // GetState ... returns the state that the host is in (running, stopped, etc)
-func (d Driver) GetState() (_state state.State, err error) {
+func (d *Driver) GetState() (status state.State, err error) {
 	// set this instance info again
-	err = d.setVPSInstanceResponseAgain()
+	inst, err := d.getVultrClient().Instance.Get(context.Background(), d.InstanceID)
 	if err != nil {
-		return _state, err
+		return status, err
 	}
 
-	log.Infof("Status: %s", d.ResponsePayloads.Instance.Status)
-	log.Infof("ServerStatus: %s", d.ResponsePayloads.Instance.ServerStatus)
-	log.Infof("PowerStatus: %s", d.ResponsePayloads.Instance.PowerStatus)
-
-	switch d.ResponsePayloads.Instance.Status {
+	switch strings.ToLower(inst.Status) {
+	case "active":
+		return state.Running, nil
 	case "pending":
 		return state.Starting, nil
 	case "resizing":
@@ -383,22 +381,7 @@ func (d Driver) GetState() (_state state.State, err error) {
 		return state.Error, nil
 	}
 
-	switch d.ResponsePayloads.Instance.ServerStatus {
-	case "none":
-		return state.None, nil
-	case "locked":
-		return state.Error, nil
-	// This ServerStatus errs on the side of safety and exceeds maximum retries
-	//case "installingbooting":
-	//	return state.Starting, nil
-	case "ok":
-		return state.Running, nil
-	}
-
-	switch d.ResponsePayloads.Instance.PowerStatus {
-	case "running":
-		return state.Running, nil
-	case "stopped":
+	if strings.ToLower(inst.PowerStatus) == "stopped" {
 		return state.Stopped, nil
 	}
 
@@ -406,23 +389,23 @@ func (d Driver) GetState() (_state state.State, err error) {
 }
 
 // Stop ... should gracefully stop instance but we're just going to halt for now
-func (d Driver) Stop() error {
+func (d *Driver) Stop() error {
 	return d.Kill()
 }
 
 // DriverName ... returns the name of the driver
-func (d Driver) DriverName() string {
+func (d *Driver) DriverName() string {
 	return "vultr"
 }
 
 // GetSSHHostname ... returns ip for use with ssh
-func (d Driver) GetSSHHostname() (string, error) {
+func (d *Driver) GetSSHHostname() (string, error) {
 	return d.GetIP()
 }
 
 // setVPSInstanceResponseAgain ... sets the VPS info again
-func (d Driver) setVPSInstanceResponseAgain() (err error) {
-	d.ResponsePayloads.Instance, err = d.client.Instance.Get(context.Background(), d.ResponsePayloads.Instance.ID)
+func (d *Driver) setVPSInstanceResponseAgain() (err error) {
+	d.ResponsePayloads.Instance, err = d.getVultrClient().Instance.Get(context.Background(), d.InstanceID)
 	if err != nil {
 		log.Errorf("Error getting the VPS instance info: [%v]", err)
 		return err

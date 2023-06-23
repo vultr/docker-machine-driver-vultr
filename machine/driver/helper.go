@@ -4,18 +4,17 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/docker/machine/libmachine/ssh"
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cast"
 	"github.com/vultr/govultr/v2"
 	"golang.org/x/oauth2"
 )
 
 // addSSHKeyToCloudInitUserData ... generates a new sshkey and adds it to cloud-init userdata cloud-config
-func (d Driver) addSSHKeyToCloudInitUserData() error {
+func (d *Driver) addSSHKeyToCloudInitUserData() error {
 	// Gets a new public SSH Key
 	pubKey, err := d.getNewPublicSSHKey()
 	if err != nil {
@@ -30,8 +29,8 @@ func (d Driver) addSSHKeyToCloudInitUserData() error {
 	return nil
 }
 
-// getNewPublicSSHKey ... generates a fresh public ssh key besed off the path to the private ssh key
-func (d Driver) getNewPublicSSHKey() (publicKey []byte, err error) {
+// getNewPublicSSHKey ... generates a fresh public ssh key based off the path to the private ssh key
+func (d *Driver) getNewPublicSSHKey() (publicKey []byte, err error) {
 	// Generate Public SSH Key
 	err = ssh.GenerateSSHKey(d.GetSSHKeyPath())
 	if err != nil {
@@ -40,7 +39,7 @@ func (d Driver) getNewPublicSSHKey() (publicKey []byte, err error) {
 	}
 
 	// Grab the SSH key we just created
-	publicKey, err = ioutil.ReadFile(fmt.Sprintf("%s.pub", d.GetSSHKeyPath()))
+	publicKey, err = os.ReadFile(fmt.Sprintf("%s.pub", d.GetSSHKeyPath()))
 	if err != nil {
 		log.Errorf("Error reading public ssh key: %v", err)
 		return publicKey, err
@@ -52,32 +51,32 @@ func (d Driver) getNewPublicSSHKey() (publicKey []byte, err error) {
 }
 
 // validatePlan ... checks plan is available in region
-func (d Driver) validatePlan() error {
+func (d *Driver) validatePlan() error {
 
 	// List plan type
 	plantype := strings.Split(d.RequestPayloads.InstanceCreateReq.Plan, "-")
-	plans, _, err := d.client.Plan.List(context.Background(), plantype[0], &govultr.ListOptions{Region: d.RequestPayloads.InstanceCreateReq.Region, PerPage: 500})
+	plans, _, err := d.getVultrClient().Plan.List(context.Background(), plantype[0], &govultr.ListOptions{Region: d.RequestPayloads.InstanceCreateReq.Region, PerPage: 500})
 	if err != nil {
 		log.Errorf("Error getting getting Plan List: [%v]", err)
 		return err
 	}
 
 	// Couple scenarios where this error will return
-	notAvailableErr := fmt.Errorf("Plan %s not available in region %s", d.RequestPayloads.InstanceCreateReq.Plan, d.RequestPayloads.InstanceCreateReq.Region)
+	notAvailableErr := fmt.Errorf("Plan %s not available in region %s .", d.RequestPayloads.InstanceCreateReq.Plan, d.RequestPayloads.InstanceCreateReq.Region)
 
 	// Loop through plans
-	for _, _plan := range plans {
+	for _, plan := range plans {
 		// Plan is listed
-		if _plan.ID == d.RequestPayloads.InstanceCreateReq.Plan {
+		if plan.ID == d.RequestPayloads.InstanceCreateReq.Plan {
 			// No locations listed
-			if len(_plan.Locations) == 0 {
+			if len(plan.Locations) == 0 {
 				return notAvailableErr
 			}
 
 			// Loop through the locations and try to find a match
-			for _, _location := range _plan.Locations {
+			for _, location := range plan.Locations {
 				// Plan found
-				if _location == d.RequestPayloads.InstanceCreateReq.Region {
+				if location == d.RequestPayloads.InstanceCreateReq.Region {
 					return nil
 				}
 			}
@@ -88,24 +87,24 @@ func (d Driver) validatePlan() error {
 }
 
 // addUFWCommandsToCloudInitUserDataCloudConfig ...
-func (d Driver) addUFWCommandsToCloudInitUserDataCloudConfig() {
+func (d *Driver) addUFWCommandsToCloudInitUserDataCloudConfig() {
 
 	// First add the run command
 	d.appendToCloudInitUserDataCloudConfig([]byte("\r\nruncmd:"))
 
 	// Let's keep track of this
 	var dockerPortWasOpened bool
-	dockerPortAsString := cast.ToString(d.DockerPort)
+	dockerPortAsString := string(d.DockerPort)
 
 	// Now add all the UFW rules
-	for _, _port := range d.UFWPortsToOpen {
+	for _, port := range d.UFWPortsToOpen {
 		// A little insurance to make sure we opened the docker port
-		if _port == dockerPortAsString {
+		if port == dockerPortAsString {
 			dockerPortWasOpened = true
 		}
 
 		// Add to the cloud init user data cloud config
-		d.appendToCloudInitUserDataCloudConfig([]byte("\r\n  - ufw allow " + _port))
+		d.appendToCloudInitUserDataCloudConfig([]byte("\r\n  - ufw allow " + port))
 	}
 
 	// Docker port was NOT opened, lets do that
@@ -120,7 +119,7 @@ func (d Driver) addUFWCommandsToCloudInitUserDataCloudConfig() {
 }
 
 // appendToCloudInitUserDataCloudConfig ... appends to the #cloud-config of the userdata
-func (d Driver) appendToCloudInitUserDataCloudConfig(additionalCloudConfig []byte) {
+func (d *Driver) appendToCloudInitUserDataCloudConfig(additionalCloudConfig []byte) {
 	var userData []byte
 	// There's nothing so lets give it the heading
 	if len(d.RequestPayloads.InstanceCreateReq.UserData) == 0 {
@@ -140,11 +139,12 @@ func (d Driver) appendToCloudInitUserDataCloudConfig(additionalCloudConfig []byt
 }
 
 // getGod.client ... returns a govultr client
-func (d Driver) getGoVultrClient() *govultr.Client {
+func (d *Driver) getVultrClient() *govultr.Client {
 	// Setup govultr client
 	config := &oauth2.Config{}
 	ctx := context.Background()
 	ts := config.TokenSource(ctx, &oauth2.Token{AccessToken: d.APIKey})
+
 	return govultr.NewClient(oauth2.NewClient(ctx, ts))
 }
 
