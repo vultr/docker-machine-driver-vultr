@@ -59,6 +59,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			EnvVar: "VULTR_TAGS",
 			Name:   "vultr-tags",
 			Usage:  "Tags you'd like to attach to this resource",
+			Value:  []string{},
 		},
 		mcnflag.IntFlag{
 			EnvVar: "VULTR_OSID",
@@ -115,11 +116,13 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			EnvVar: "VULTR_VPC_IDS",
 			Name:   "vultr-vpc-ids",
 			Usage:  "VPC IDs you want to attach to this resource",
+			Value:  []string{},
 		},
 		mcnflag.StringSliceFlag{
 			EnvVar: "VULTR_SSH_KEY_IDS",
 			Name:   "vultr-ssh-key-ids",
 			Usage:  "SSH Key IDs you'd like installed on this resource. If no SSH Key ID is provided, one will be generated for you",
+			Value:  []string{},
 		},
 		mcnflag.BoolFlag{
 			EnvVar: "VULTR_VPS_BACKUPS",
