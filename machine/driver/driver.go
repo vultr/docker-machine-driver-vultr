@@ -184,6 +184,7 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	d.RequestPayloads.InstanceCreateReq.ISOID = opts.String("vultr-iso-id")
 	d.RequestPayloads.InstanceCreateReq.AppID = opts.Int("vultr-app-id")
 	d.RequestPayloads.InstanceCreateReq.ImageID = opts.String("vultr-image-id")
+	d.RequestPayloads.InstanceCreateReq.SnapshotID = opts.String("vultr-snapshot-id")
 	d.RequestPayloads.InstanceCreateReq.FirewallGroupID = opts.String("vultr-firewall-group-id")
 	d.RequestPayloads.InstanceCreateReq.IPXEChainURL = opts.String("vultr-ipxe-chain-url")
 	d.RequestPayloads.InstanceCreateReq.ScriptID = opts.String("vultr-startup-script-id")
