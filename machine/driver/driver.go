@@ -16,10 +16,9 @@ import (
 )
 
 const (
-	defaultOSID       = 387 // Ubuntu 20.04
-	defaultRegion     = "ewr"
-	defaultPlan       = "vc2-1c-2gb"
-	defaultDockerPort = 2376
+	defaultOSID   = 387 // Ubuntu 20.04
+	defaultRegion = "ewr"
+	defaultPlan   = "vc2-1c-2gb"
 )
 
 // Driver ... driver struct
@@ -31,16 +30,8 @@ type Driver struct {
 	ResponsePayloads struct {
 		Instance *govultr.Instance
 	}
-	APIKey         string
-	InstanceID     string
-	DockerPort     int
-	UFWPortsToOpen []string
-	DisableUFW     bool
-}
-
-// getDefaultUFWPortsToOpen ...
-func (d *Driver) getDefaultUFWPortsToOpen() []string {
-	return []string{"22", "80", "443", "2376", "2379", "2380", "6443", "9099", "9796", "10250", "10254", "30000:32767/tcp", "8472/udp", "30000:32767/udp"}
+	APIKey     string
+	InstanceID string
 }
 
 // GetCreateFlags ... returns the mcnflag.Flag slice representing the flags
@@ -155,23 +146,6 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Name:   "vultr-send-activation-email",
 			Usage:  "Send activation email when your server begins deployment (default: false)",
 		},
-		mcnflag.IntFlag{
-			EnvVar: "VULTR_DOCKER_PORT",
-			Name:   "vultr-docker-port",
-			Usage:  "Port the docker machine will host on (default: 2376)",
-			Value:  defaultDockerPort,
-		},
-		mcnflag.BoolFlag{
-			EnvVar: "VULTR_DISABLE_OS_FIREWALL",
-			Name:   "vultr-disable-os-firewall",
-			Usage:  "Disable the UFW firewall that comes standard on every Vultr OS (default: false)",
-		},
-		mcnflag.StringSliceFlag{
-			EnvVar: "VULTR_PORTS_TO_OPEN_ON_OS_FIREWALL",
-			Name:   "vultr-ports-to-open-on-os-firewall",
-			Usage:  "Comma delimited list of ports to open on the UFW firewall that comes standard on every Vultr OS (default: " + strings.Join(d.getDefaultUFWPortsToOpen()[:], ",") + " )",
-			Value:  d.getDefaultUFWPortsToOpen(),
-		},
 	}
 }
 
@@ -222,15 +196,10 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	d.RequestPayloads.InstanceCreateReq.ReservedIPv4 = opts.String("vultr-floating-ipv4-id")
 	d.RequestPayloads.InstanceCreateReq.ActivationEmail = utils.BoolPtr(opts.Bool("vultr-send-activation-email"))
 
-	// Docker stuff...
-	d.DockerPort = opts.Int("vultr-docker-port")
-	d.DisableUFW = opts.Bool("vultr-disable-os-firewall")
-	d.UFWPortsToOpen = opts.StringSlice("vultr-ports-to-open-on-os-firewall")
-
 	return nil
 }
 
-// NewDriver ... instanciate new driver
+// NewDriver returns a new driver
 func NewDriver(hostname, storePath string) *Driver {
 	return &Driver{
 		BaseDriver: &drivers.BaseDriver{
@@ -248,13 +217,8 @@ func (d *Driver) Create() (err error) {
 		return err
 	}
 
-	// Create new ssh key if none was supplied
-	if len(d.RequestPayloads.InstanceCreateReq.SSHKeys) == 0 {
-		d.addSSHKeyToCloudInitUserData()
-	}
-
-	// Add all the UFW commands to the cloud init user config
-	d.addUFWCommandsToCloudInitUserDataCloudConfig()
+	// Create new ssh key
+	d.createSSHKey()
 
 	// Create instance
 	d.ResponsePayloads.Instance, err = d.getVultrClient().Instance.Create(context.Background(), &d.RequestPayloads.InstanceCreateReq)
