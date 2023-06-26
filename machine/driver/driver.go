@@ -169,14 +169,6 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	d.RequestPayloads.InstanceCreateReq.Hostname = machineName
 	d.RequestPayloads.InstanceCreateReq.Label = machineName
 
-	// ** Handle VPC ** //
-	enableVPC := opts.Bool("vultr-enable-vpc")
-	vpcSlice := opts.StringSlice("vultr-vpc-ids")
-
-	if enableVPC && len(vpcSlice) > 0 {
-		return fmt.Errorf("if enable-vpc is set you cannot attach additional VPC's")
-	}
-
 	// ** Set Backups **//
 	d.RequestPayloads.InstanceCreateReq.Backups = getBackupStatus(opts.Bool("vultr-vps-backups"))
 
