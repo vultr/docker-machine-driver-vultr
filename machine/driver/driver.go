@@ -215,7 +215,10 @@ func (d *Driver) Create() (err error) {
 	}
 
 	// Create new ssh key
-	d.createSSHKey()
+	if err = d.createSSHKey(); err != nil {
+		log.Errorf("Error creating SSH Key")
+		return err
+	}
 
 	// Create instance
 	d.ResponsePayloads.Instance, err = d.getVultrClient().Instance.Create(context.Background(), &d.RequestPayloads.InstanceCreateReq)
