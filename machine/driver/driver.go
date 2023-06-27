@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/docker/machine/libmachine/drivers"
+	"github.com/docker/machine/libmachine/log"
 	"github.com/docker/machine/libmachine/mcnflag"
 	"github.com/docker/machine/libmachine/state"
-	log "github.com/sirupsen/logrus"
 	"github.com/vultr/docker-machine-driver-vultr/utils"
 	"github.com/vultr/govultr/v2"
 )
@@ -137,7 +137,8 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		mcnflag.StringFlag{
 			EnvVar: "VULTR_CLOUD_INIT_USER_DATA",
 			Name:   "vultr-cloud-init-user-data",
-			Usage:  "Pass base64 encoded cloud-init user data to this resource to execute after successful provision",
+			Usage:  "Pass base64 encoded cloud-init user data to this resource to execute after successful provision. Default Cloud-Init provided disables UFW ",
+			Value:  "I2Nsb3VkLWNvbmZpZwoKcnVuY21kOgogLSB1ZncgZGlzYWJsZQ==",
 		},
 		mcnflag.StringFlag{
 			EnvVar: "VULTR_FLOATING_IPV4_ID",
