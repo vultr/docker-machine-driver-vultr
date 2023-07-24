@@ -103,3 +103,31 @@ func getBackupStatus(status bool) string {
 	}
 	return "disabled"
 }
+
+func (d *Driver) addMachineToFirewall() error {
+	if d.RequestPayloads.InstanceCreateReq.FirewallGroupID == "" {
+		return nil
+	}
+
+	machine := d.ResponsePayloads.Instance
+	firewall := d.RequestPayloads.InstanceCreateReq.FirewallGroupID
+
+	firewallReq := govultr.FirewallRuleReq{
+		IPType:     "v4",
+		Protocol:   "TCP",
+		Port:       "1:65535",
+		Subnet:     machine.MainIP,
+		SubnetSize: 32,
+		Source:     "",
+		Notes:      fmt.Sprintf("Automatically Generated rule for machine: %s", machine.Label),
+	}
+
+	rule, err := d.getVultrClient().FirewallRule.Create(context.Background(), firewall, &firewallReq)
+	if err != nil {
+		return err
+	}
+
+	d.FirewallRuleID = rule.ID
+
+	return nil
+}

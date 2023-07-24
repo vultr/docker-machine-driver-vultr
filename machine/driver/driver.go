@@ -30,8 +30,9 @@ type Driver struct {
 	ResponsePayloads struct {
 		Instance *govultr.Instance
 	}
-	APIKey     string
-	InstanceID string
+	APIKey         string
+	InstanceID     string
+	FirewallRuleID int
 }
 
 // GetCreateFlags ... returns the mcnflag.Flag slice representing the flags
@@ -249,6 +250,10 @@ func (d *Driver) Create() (err error) {
 		return err
 	}
 
+	if d.RequestPayloads.InstanceCreateReq.FirewallGroupID != "" {
+		d.addMachineToFirewall()
+	}
+
 	return nil
 }
 
@@ -287,6 +292,10 @@ func (d *Driver) Remove() error {
 	if err := d.getVultrClient().Instance.Delete(context.Background(), d.InstanceID); err != nil {
 		log.Errorf("Error deleting VPS %s: [%v]", d.BaseDriver.MachineName, err)
 		return err
+	}
+
+	if d.FirewallRuleID > 0 {
+		d.getVultrClient().FirewallRule.Delete(context.Background(), d.RequestPayloads.InstanceCreateReq.FirewallGroupID, d.FirewallRuleID)
 	}
 
 	return nil
