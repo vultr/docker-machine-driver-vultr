@@ -3,7 +3,7 @@ package driver
 import (
 	"context"
 	"fmt"
-	"github.com/vultr/govultr/v2"
+	"github.com/vultr/govultr/v3"
 	"os"
 	"strings"
 
@@ -15,7 +15,7 @@ import (
 func (d *Driver) createSSHKey() error {
 	if len(d.RequestPayloads.InstanceCreateReq.SSHKeys) > 0 {
 		for _, id := range d.RequestPayloads.InstanceCreateReq.SSHKeys {
-			_, err := d.getVultrClient().SSHKey.Get(context.Background(), id)
+			_, _, err := d.getVultrClient().SSHKey.Get(context.Background(), id)
 			if err != nil {
 				return err
 			}
@@ -41,7 +41,7 @@ func (d *Driver) createSSHKey() error {
 		Name:   d.MachineName,
 	}
 
-	key, err := d.getVultrClient().SSHKey.Create(context.Background(), createRequest)
+	key, _, err := d.getVultrClient().SSHKey.Create(context.Background(), createRequest)
 	if err != nil {
 		return err
 	}
@@ -56,7 +56,7 @@ func (d *Driver) validatePlan() error {
 
 	// List plan type
 	plantype := strings.Split(d.RequestPayloads.InstanceCreateReq.Plan, "-")
-	plans, _, err := d.getVultrClient().Plan.List(context.Background(), plantype[0], &govultr.ListOptions{Region: d.RequestPayloads.InstanceCreateReq.Region, PerPage: 500})
+	plans, _, _, err := d.getVultrClient().Plan.List(context.Background(), plantype[0], &govultr.ListOptions{Region: d.RequestPayloads.InstanceCreateReq.Region, PerPage: 500})
 	if err != nil {
 		log.Errorf("Error getting getting Plan List: [%v]", err)
 		return err
@@ -122,7 +122,7 @@ func (d *Driver) addMachineToFirewall() error {
 		Notes:      fmt.Sprintf("Automatically Generated rule for machine: %s", machine.Label),
 	}
 
-	rule, err := d.getVultrClient().FirewallRule.Create(context.Background(), firewall, &firewallReq)
+	rule, _, err := d.getVultrClient().FirewallRule.Create(context.Background(), firewall, &firewallReq)
 	if err != nil {
 		return err
 	}

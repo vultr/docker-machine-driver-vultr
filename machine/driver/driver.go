@@ -12,7 +12,7 @@ import (
 	"github.com/docker/machine/libmachine/mcnflag"
 	"github.com/docker/machine/libmachine/state"
 	"github.com/vultr/docker-machine-driver-vultr/utils"
-	"github.com/vultr/govultr/v2"
+	"github.com/vultr/govultr/v3"
 )
 
 const (
@@ -222,7 +222,7 @@ func (d *Driver) Create() (err error) {
 	}
 
 	// Create instance
-	d.ResponsePayloads.Instance, err = d.getVultrClient().Instance.Create(context.Background(), &d.RequestPayloads.InstanceCreateReq)
+	d.ResponsePayloads.Instance, _, err = d.getVultrClient().Instance.Create(context.Background(), &d.RequestPayloads.InstanceCreateReq)
 	if err != nil {
 		log.Errorf("Error creating the VPS: [%v]", err)
 		return err
@@ -338,7 +338,7 @@ func (d *Driver) GetURL() (ip string, err error) {
 // GetState ... returns the state that the host is in (running, stopped, etc)
 func (d *Driver) GetState() (status state.State, err error) {
 	// set this instance info again
-	inst, err := d.getVultrClient().Instance.Get(context.Background(), d.InstanceID)
+	inst, _, err := d.getVultrClient().Instance.Get(context.Background(), d.InstanceID)
 	if err != nil {
 		return status, err
 	}
@@ -378,7 +378,7 @@ func (d *Driver) GetSSHHostname() (string, error) {
 
 // setVPSInstanceResponseAgain ... sets the VPS info again
 func (d *Driver) setVPSInstanceResponseAgain() (err error) {
-	d.ResponsePayloads.Instance, err = d.getVultrClient().Instance.Get(context.Background(), d.InstanceID)
+	d.ResponsePayloads.Instance, _, err = d.getVultrClient().Instance.Get(context.Background(), d.InstanceID)
 	if err != nil {
 		log.Errorf("Error getting the VPS instance info: [%v]", err)
 		return err
