@@ -8,7 +8,7 @@ require (
 	github.com/docker/machine v0.16.2
 	github.com/rancher/machine v0.16.2
 	github.com/vultr/govultr/v3 v3.14.1
-	golang.org/x/oauth2 v0.25.0
+	golang.org/x/oauth2 v0.26.0
 )
 
 require (
