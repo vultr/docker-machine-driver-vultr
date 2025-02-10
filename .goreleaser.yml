@@ -6,6 +6,8 @@ builds:
   -
     env:
     - CGO_ENABLED=0
+    
+    main: ./machine/main.go 
 
     mod_timestamp: '{{ .CommitTimestamp }}'
     flags:
