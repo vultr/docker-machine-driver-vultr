@@ -1,0 +1,17 @@
+name: notify-issue
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  issue:
+    runs-on: ubuntu-latest
+    name: New Issue Notification
+    steps:
+      - uses: mattermost/action-mattermost-notify@2.0.0
+        with:
+          MATTERMOST_WEBHOOK_URL: ${{ secrets.MATTERMOST_WEBHOOK_URL }}
+          MATTERMOST_USERNAME: ${{ secrets.MATTERMOST_USERNAME}}
+          MATTERMOST_ICON_URL: ${{ secrets.MATTERMOST_ICON }}
+          TEXT: "${{ github.repository }}: New Issue https://github.com/${{ github.repository }}/issues/${{ github.event.issue.number }}"
