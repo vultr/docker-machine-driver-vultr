@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	defaultOSID   = 387 // Ubuntu 20.04
+	defaultOSID   = 1743 // Ubuntu 22.04
 	defaultRegion = "ewr"
 	defaultPlan   = "vc2-1c-2gb"
 )
