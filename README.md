@@ -4,6 +4,8 @@ Vultr Driver for docker-machine and Rancher Node Driver
 
 ## Install as a docker-machine driver
 
+`docker-machine` is now maintained by Rancher as `rancher-machine`. It is recommended to install `rancher-machine` instead. See the official repository: <https://github.com/rancher/machine>.
+
 `docker-machine` is required, [see the installation documentation](https://gitlab.com/gitlab-org/ci-cd/docker-machine/-/blob/main/docs/install-machine.md).
 
 Then install the `docker-machine-driver-vultr` driver by copying the build to `/usr/local/bin/`.
@@ -12,21 +14,29 @@ Then install the `docker-machine-driver-vultr` driver by copying the build to `/
 
 Use overlay2 as the storage engine
 
+### Installing Rancher-Machine
 
-### Installing from source
-
-If you would rather build from source, you will need to have a working `go` 1.11+ environment,
+To install `rancher-machine` from source
 
 ```bash
 eval $(go env)
 export PATH="$PATH:$GOPATH/bin"
 ```
 
+```bash
+# Download the Rancher Machine binary
+curl -LO https://github.com/rancher/machine/releases/download/v0.15.0-rancher125/rancher-machine-amd64.tar.gz
+
+# Extract the downloaded archive
+tar -xzvf rancher-machine-amd64.tar.gz
+
+# Move the binary to a system path
+sudo mv rancher-machine /usr/local/bin/rancher-machine
+
+# Ensure the binary is executable
+sudo chmod +x /usr/local/bin/rancher-machine
 ```
-curl -O "https://gitlab-docker-machine-downloads.s3.amazonaws.com/v0.16.2-gitlab.11/docker-machine-Linux-x86_64"
-cp docker-machine-Linux-x86_64 /usr/local/bin/docker-machine
-chmod +x /usr/local/bin/docker-machine
-```
+
 
 And then compile the `docker-machine-driver-vultr` driver:
 
@@ -38,13 +48,14 @@ make install
 
 ## Run
 
-You will need a Vultr APIv4 Personal API key. Is only available in members area <https://my.vultr.com/settings/#settingsapi>, you need to create an account (<https://www.vultr.com/register/>) to get there
+You will need a Vultr APIv4 Personal API key. It is only available in the members area <https://my.vultr.com/settings/#settingsapi>. You need to create an account (<https://www.vultr.com/register/>) to get there.
 
-You will also need to use the 19.03.9 install enginer as shown in the example below
+You will also need to use the 19.03.9 install engine as shown in the example below:
 
 ```bash
-docker-machine create -d vultr --vultr-api-key=<vultr-api-key> --engine-install-url "https://releases.rancher.com/install-docker/19.03.9.sh" <machine-name>
+rancher-machine create -d vultr --vultr-api-key=<vultr-api-key> --engine-install-url "https://releases.rancher.com/install-docker/19.03.9.sh" <machine-name>
 ```
+
 
 ### Options
 
@@ -77,10 +88,10 @@ docker-machine create -d vultr --vultr-api-key=<vultr-api-key> --engine-install-
 
 ## Debugging
 
-Detailed run output will be emitted when using the `docker-machine` `--debug` option.
+Detailed run output will be emitted when using the `rancher-machine` `--debug` option.
 
 ```bash
-docker-machine --debug  create -d vultr --vultr-api-key=<vultr-api-key> machinename
+rancher-machine --debug  create -d vultr --vultr-api-key=<vultr-api-key> machinename
 ```
 
 ## Examples
@@ -88,16 +99,16 @@ docker-machine --debug  create -d vultr --vultr-api-key=<vultr-api-key> machinen
 ### Simple Example
 
 ```bash
-docker-machine create -d vultr --vultr-api-key=<vultr-api-key> vultr
-eval $(docker-machine env vultr)
+rancher-machine create -d vultr --vultr-api-key=<vultr-api-key> vultr
+eval $(rancher-machine env vultr)
 ```
 
 ```bash
-$ docker-machine ls
+$ rancher-machine ls
 NAME      ACTIVE   DRIVER   STATE     URL                         SWARM   DOCKER     ERRORS
 vultr     -        vultr    Running   tcp://207.246.87.114:2376           v19.03.5
 
-$ docker-machine rm vultr
+$ rancher-machine rm vultr
 About to remove vultr
 WARNING: This action will delete both local reference and remote instance.
 Are you sure? (y/n): y
