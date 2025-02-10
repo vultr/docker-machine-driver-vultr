@@ -65,7 +65,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		mcnflag.IntFlag{
 			EnvVar: "VULTR_OSID",
 			Name:   "vultr-os-id",
-			Usage:  "Operating system ID (default: [387] Ubuntu 20.04)",
+			Usage:  "Operating system ID (default: [1743] Ubuntu 22.04)",
 			Value:  defaultOSID,
 		},
 		mcnflag.StringFlag{

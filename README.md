@@ -65,7 +65,7 @@ rancher-machine create -d vultr --vultr-api-key=<vultr-api-key> --engine-install
 | `vultr-server-type`       | `VULTR_SERVER_TYPE`       | `1` | Vultr Server Type ( 1-SSD, 2-BareMetal, 3-DedicatedCloud)
 | `vultr-region`            | `VULTR_REGION`            | `1` (New Jersey) | VPS DCID (Region) (see [here](https://www.vultr.com/api/#regions))
 | `vultr-vps-plan-id`       | `VULTR_VPS_PLAN_ID`       | `201` (1024 MB RAM,25 GB SSD,1.00 TB BW) | VPS Plan ID (see [here](https://www.vultr.com/api/#plans))
-| `vultr-os-id`             | `VULTR_OS_ID`             | `270` (Ubuntu 18.04 x64) | VPS Operating System ID (see [here](https://www.vultr.com/api/#os))
+| `vultr-os-id`             | `VULTR_OS_ID`             | `1743` (Ubuntu 22.04 x64) | VPS Operating System ID (see [here](https://www.vultr.com/api/#os))
 | `vultr-ipxe-chain-url`    | `VULTR_IPXE_CHAIN_URL`    | None | (optional) If you've selected the 'custom' operating system, this can be set to chainload the specified URL on bootup, via iPXE
 | `vultr-iso-id`            | `VULTR_ISO_ID`            | None | (optional) If you've selected the 'custom' operating system, this is the ID of a specific ISO to mount during the deployment
 | `vultr-script-id`         | `VULTR_SCRIPT_ID`         | None | (optional) If you've not selected a 'custom' operating system, this can be the SCRIPTID of a startup script to execute on boot

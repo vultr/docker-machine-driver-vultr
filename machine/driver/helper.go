@@ -63,7 +63,7 @@ func (d *Driver) validatePlan() error {
 	}
 
 	// Couple scenarios where this error will return
-	notAvailableErr := fmt.Errorf("Plan %s not available in region %s .", d.RequestPayloads.InstanceCreateReq.Plan, d.RequestPayloads.InstanceCreateReq.Region)
+	notAvailableErr := fmt.Errorf("plan %s not available in region %s .", d.RequestPayloads.InstanceCreateReq.Plan, d.RequestPayloads.InstanceCreateReq.Region)
 
 	// Loop through plans
 	for _, plan := range plans {
