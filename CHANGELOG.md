@@ -1,5 +1,10 @@
 # Change Log
 
+## v2.2.0 (2025-02-11)
+##  Dependencies
+ * Update govultr from v2 to v3 [#39](https://github.com/vultr/docker-machine-driver-vultr/pull/39)
+ * Update ci-tools and docs [#41](https://github.com/vultr/docker-machine-driver-vultr/pull/41)
+
 ## v2.0.0 (2022-08-2)
 ## Enhancement
  * Refactor to accommodate latest version of GoVultr to support Vultr API v2
