@@ -21,11 +21,8 @@ builds:
     binary: docker-machine-driver-vultr
 
 archives:
-  -
-    format: zip
-    files:
-      - none*
-    name_template: '{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+  - name_template: "{{ .ProjectName }}"
+    formats: binary
 
 checksum:
   name_template: '{{ .ProjectName }}_v{{ .Version }}_SHA256SUMS'
