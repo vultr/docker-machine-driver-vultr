@@ -1,14 +1,13 @@
 module github.com/vultr/docker-machine-driver-vultr
 
 go 1.23
-
 toolchain go1.23.5
 
 require (
 	github.com/docker/machine v0.16.2
 	github.com/rancher/machine v0.16.2
 	github.com/vultr/govultr/v3 v3.14.1
-	golang.org/x/oauth2 v0.25.0
+	golang.org/x/oauth2 v0.27.0
 )
 
 require (
