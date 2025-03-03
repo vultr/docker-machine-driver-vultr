@@ -7,8 +7,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/docker/machine/libmachine/log"
-	"github.com/docker/machine/libmachine/ssh"
+	"github.com/rancher/machine/libmachine/log"
+	"github.com/rancher/machine/libmachine/ssh"
 	"golang.org/x/oauth2"
 )
 
