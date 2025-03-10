@@ -34,8 +34,8 @@ github.com/rancher/machine v0.16.2/go.mod h1:1UV3lGqLhmjRp8Wd3P8cTsKUCs/9GY6He5j
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5CcY=
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
-github.com/vultr/govultr/v3 v3.14.1 h1:9BpyZgsWasuNoR39YVMcq44MSaF576Z4D+U3ro58eJQ=
-github.com/vultr/govultr/v3 v3.14.1/go.mod h1:q34Wd76upKmf+vxFMgaNMH3A8BbsPBmSYZUGC8oZa5w=
+github.com/vultr/govultr/v3 v3.16.1 h1:fADa6GDVg+kphNjog05gCxKz6CmMZ7zSourX0e2ezyw=
+github.com/vultr/govultr/v3 v3.16.1/go.mod h1:q34Wd76upKmf+vxFMgaNMH3A8BbsPBmSYZUGC8oZa5w=
 golang.org/x/crypto v0.32.0 h1:euUpcYgM8WcP71gNpTqQCn6rC2t6ULUPiOzfWaXVVfc=
 golang.org/x/crypto v0.32.0/go.mod h1:ZnnJkOaASj8g0AjIduWNlq2NRxL0PlBrbKVyZ6V/Ugc=
 golang.org/x/oauth2 v0.25.0 h1:CY4y7XT9v0cRI9oupztF8AgiIu99L/ksR/Xp/6jrZ70=
