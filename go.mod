@@ -6,7 +6,7 @@ toolchain go1.23.5
 
 require (
 	github.com/rancher/machine v0.15.0-rancher126
-	github.com/vultr/govultr/v3 v3.14.1
+	github.com/vultr/govultr/v3 v3.20.0
 	golang.org/x/oauth2 v0.25.0
 )
 
