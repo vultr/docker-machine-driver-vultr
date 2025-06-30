@@ -235,7 +235,7 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 				return fmt.Errorf("failed to unmarshal cloud config: %w", err)
 			}
 
-			config.RunCmd = append(config.RunCmd, "ufw disable")
+			config.RunCmd = append(config.RunCmd, `[ -x "$(command -v ufw)" ] && ufw disable`)
 
 			updatedCloudConfig, err := yaml.Marshal(&config)
 			if err != nil {
