@@ -24,6 +24,12 @@ const (
 	defaultPlan   = "vc2-1c-2gb"
 )
 
+const defaultCloudConfig = `
+#cloud-config
+runcmd:
+- '[ -x "$(command -v ufw)" ] && ufw disable'
+`
+
 // Driver ... driver struct
 type Driver struct {
 	*drivers.BaseDriver
@@ -225,7 +231,7 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	if cloudInitFromFile {
 		data, err := os.ReadFile(cloudInitUserData)
 		if err != nil {
-			return fmt.Errorf("failed to read cloud-init file %q: %w", cloudInitUserData, err)
+			return fmt.Errorf("failed to read cloud-init file: %w", err)
 		}
 
 		if disableUFW {
@@ -251,7 +257,7 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 		}
 	} else {
 		if cloudInitUserData == "" {
-			cloudInitUserData = "I2Nsb3VkLWNvbmZpZwoKcnVuY21kOgogLSB1ZncgZGlzYWJsZQ=="
+			cloudInitUserData = base64.StdEncoding.EncodeToString([]byte(defaultCloudConfig))
 		}
 		d.RequestPayloads.InstanceCreateReq.UserData = cloudInitUserData
 	}
