@@ -19,16 +19,14 @@ import (
 )
 
 const (
-	defaultOSID   = 1743 // Ubuntu 22.04
-	defaultRegion = "ewr"
-	defaultPlan   = "vc2-1c-2gb"
-)
-
-const defaultCloudConfig = `
-#cloud-config
+	defaultOSID        = 1743 // Ubuntu 22.04
+	defaultRegion      = "ewr"
+	defaultPlan        = "vc2-1c-2gb"
+	defaultCloudConfig = `#cloud-config
 runcmd:
 - '[ -x "$(command -v ufw)" ] && ufw disable'
 `
+)
 
 // Driver ... driver struct
 type Driver struct {
@@ -241,7 +239,7 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 				return fmt.Errorf("failed to unmarshal cloud config: %w", err)
 			}
 
-			config.RunCmd = append(config.RunCmd, `[ -x "$(command -v ufw)" ] && ufw disable`)
+			config.RunCmd = append(config.RunCmd, "[ -x \"$(command -v ufw)\" ] && ufw disable")
 
 			updatedCloudConfig, err := yaml.Marshal(&config)
 			if err != nil {
