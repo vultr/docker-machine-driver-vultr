@@ -24,7 +24,7 @@ const (
 	defaultPlan        = "vc2-1c-2gb"
 	defaultCloudConfig = `#cloud-config
 runcmd:
-- '[ -x "$(command -v ufw)" ] && ufw disable'
+  - '[ -x "$(command -v ufw)" ] && ufw disable'
 `
 )
 
