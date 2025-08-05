@@ -2,11 +2,14 @@ package driver
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net"
+	"os"
 	"strings"
 	"time"
 
+	"github.com/goccy/go-yaml"
 	"github.com/rancher/machine/libmachine/drivers"
 	"github.com/rancher/machine/libmachine/log"
 	"github.com/rancher/machine/libmachine/mcnflag"
@@ -16,9 +19,13 @@ import (
 )
 
 const (
-	defaultOSID   = 1743 // Ubuntu 22.04
-	defaultRegion = "ewr"
-	defaultPlan   = "vc2-1c-2gb"
+	defaultOSID        = 1743 // Ubuntu 22.04
+	defaultRegion      = "ewr"
+	defaultPlan        = "vc2-1c-2gb"
+	defaultCloudConfig = `#cloud-config
+runcmd:
+  - '[ -x "$(command -v ufw)" ] && ufw disable'
+`
 )
 
 // Driver ... driver struct
@@ -33,6 +40,19 @@ type Driver struct {
 	APIKey         string
 	InstanceID     string
 	FirewallRuleID int
+}
+
+type CloudConfig struct {
+	Hostname   string      `yaml:"hostname,omitempty"`
+	RunCmd     []string    `yaml:"runcmd,omitempty"`
+	WriteFiles []WriteFile `yaml:"write_files,omitempty"`
+}
+
+type WriteFile struct {
+	Content     string `yaml:"content"`
+	Encoding    string `yaml:"encoding,omitempty"`
+	Path        string `yaml:"path"`
+	Permissions string `yaml:"permissions,omitempty"`
 }
 
 // GetCreateFlags ... returns the mcnflag.Flag slice representing the flags
@@ -139,7 +159,16 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			EnvVar: "VULTR_CLOUD_INIT_USER_DATA",
 			Name:   "vultr-cloud-init-user-data",
 			Usage:  "Pass base64 encoded cloud-init user data to this resource to execute after successful provision. Default Cloud-Init provided disables UFW ",
-			Value:  "I2Nsb3VkLWNvbmZpZwoKcnVuY21kOgogLSB1ZncgZGlzYWJsZQ==",
+		},
+		mcnflag.BoolFlag{
+			EnvVar: "VULTR_CLOUD_INIT_FROM_FILE",
+			Name:   "vultr-cloud-init-from-file",
+			Usage:  "Pass --vultr-cloud-init-user-data as a file path instead of base64 encoded string",
+		},
+		mcnflag.BoolFlag{
+			EnvVar: "VULTR_DISABLE_UFW",
+			Name:   "vultr-disable-ufw",
+			Usage:  "Disable UFW (default: enabled)",
 		},
 		mcnflag.StringFlag{
 			EnvVar: "VULTR_FLOATING_IPV4_ID",
@@ -190,10 +219,46 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	d.RequestPayloads.InstanceCreateReq.AttachVPC = opts.StringSlice("vultr-vpc-ids")
 	d.RequestPayloads.InstanceCreateReq.SSHKeys = opts.StringSlice("vultr-ssh-key-ids")
 	d.RequestPayloads.InstanceCreateReq.DDOSProtection = utils.BoolPtr(opts.Bool("vultr-ddos-protection"))
-	d.RequestPayloads.InstanceCreateReq.UserData = opts.String("vultr-cloud-init-user-data")
 	d.RequestPayloads.InstanceCreateReq.ReservedIPv4 = opts.String("vultr-floating-ipv4-id")
 	d.RequestPayloads.InstanceCreateReq.ActivationEmail = utils.BoolPtr(opts.Bool("vultr-send-activation-email"))
 
+	cloudInitFromFile := opts.Bool("vultr-cloud-init-from-file")
+	cloudInitUserData := opts.String("vultr-cloud-init-user-data")
+	disableUFW := opts.Bool("vultr-disable-ufw")
+
+	if cloudInitFromFile {
+		data, err := os.ReadFile(cloudInitUserData)
+		if err != nil {
+			return fmt.Errorf("failed to read cloud-init file: %w", err)
+		}
+
+		if disableUFW {
+			cloudConfigHeader := strings.TrimPrefix(string(data), "#cloud-config\n")
+			var config CloudConfig
+			if err := yaml.Unmarshal([]byte(cloudConfigHeader), &config); err != nil {
+				return fmt.Errorf("failed to unmarshal cloud config: %w", err)
+			}
+
+			config.RunCmd = append(config.RunCmd, "[ -x \"$(command -v ufw)\" ] && ufw disable")
+
+			updatedCloudConfig, err := yaml.Marshal(&config)
+			if err != nil {
+				return fmt.Errorf("failed to marshal updated cloud-init data: %w", err)
+			}
+
+			newData := append([]byte("#cloud-config\n"), updatedCloudConfig...)
+			encodedUD := base64.StdEncoding.EncodeToString(newData)
+			d.RequestPayloads.InstanceCreateReq.UserData = encodedUD
+		} else {
+			encodedUD := base64.StdEncoding.EncodeToString(data)
+			d.RequestPayloads.InstanceCreateReq.UserData = encodedUD
+		}
+	} else {
+		if cloudInitUserData == "" {
+			cloudInitUserData = base64.StdEncoding.EncodeToString([]byte(defaultCloudConfig))
+		}
+		d.RequestPayloads.InstanceCreateReq.UserData = cloudInitUserData
+	}
 	return nil
 }
 
