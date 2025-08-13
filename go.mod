@@ -5,6 +5,7 @@ go 1.23.0
 toolchain go1.23.5
 
 require (
+	github.com/goccy/go-yaml v1.18.0
 	github.com/rancher/machine v0.15.0-rancher126
 	github.com/vultr/govultr/v3 v3.14.1
 	golang.org/x/oauth2 v0.25.0
