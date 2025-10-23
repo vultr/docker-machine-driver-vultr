@@ -1,12 +1,19 @@
 # Change Log
+## v2.3.0 (2025-10-23)
+###  Enhancement
+* Support cloud-init userdata from file [#59](https://github.com/vultr/docker-machine-driver-vultr/pull/59)
+
+###  Dependencies
+* Update docker imports to rancher [#49](https://github.com/vultr/docker-machine-driver-vultr/pull/49)
+* Update github-tag-action from v1.36.0 to v1.71.0 [#55](https://github.com/vultr/docker-machine-driver-vultr/pull/55)
 
 ## v2.2.0 (2025-02-11)
-##  Dependencies
+###  Dependencies
  * Update govultr from v2 to v3 [#39](https://github.com/vultr/docker-machine-driver-vultr/pull/39)
  * Update ci-tools and docs [#41](https://github.com/vultr/docker-machine-driver-vultr/pull/41) 
 
 ## v2.0.0 (2022-08-2)
-## Enhancement
+### Enhancement
  * Refactor to accommodate latest version of GoVultr to support Vultr API v2
  * Leverage cloud-init to install ssh keys instead of creating numerous public keys
  * Open up docker port on VPS
